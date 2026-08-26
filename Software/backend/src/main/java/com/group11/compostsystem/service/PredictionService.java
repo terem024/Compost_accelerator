@@ -20,6 +20,8 @@ import java.util.Set;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -29,6 +31,8 @@ import com.group11.compostsystem.dto.AIPredictionResponse;
 
 @Service
 public class PredictionService {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(PredictionService.class);
 
     private final JdbcTemplate jdbcTemplate;
     private final ObjectMapper objectMapper;
@@ -98,7 +102,8 @@ public class PredictionService {
             }
 
             if (geminiApiKey == null || geminiApiKey.isBlank()) {
-                return AIPredictionResponse.failed("Gemini API key is missing. Set GEMINI_API_KEY in Eclipse Run Configurations.");
+                LOGGER.warn("AI prediction requested while GEMINI_API_KEY is not configured.");
+                return AIPredictionResponse.failed("AI predictions are temporarily unavailable. Please try again later.");
             }
 
             Map<String, Object> readingSummary = getReadingSummary(selectedBatchId);
@@ -152,7 +157,8 @@ public class PredictionService {
             );
 
         } catch (Exception e) {
-            return AIPredictionResponse.failed("AI prediction failed: " + e.getMessage());
+            LOGGER.warn("AI prediction could not be generated.", e);
+            return AIPredictionResponse.failed("We couldn't generate the prediction right now. Please try again later.");
         }
     }
 

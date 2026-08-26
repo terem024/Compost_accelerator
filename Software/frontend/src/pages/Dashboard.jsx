@@ -179,18 +179,18 @@ function Dashboard({ user, online }) {
 
   const systemStatus = useMemo(() => {
     if (dataState === 'live') {
-      return 'Live database readings are active';
+      return 'Live sensor readings are active';
     }
 
     if (dataState === 'offline') {
       return sensors.length > 0
-        ? 'Backend unavailable. Showing last cached database reading'
-        : 'Backend unavailable. Waiting for database sensor data';
+        ? 'Live readings are temporarily unavailable. Showing the last saved reading'
+        : 'Live readings are temporarily unavailable. Waiting for sensor data';
     }
 
     return sensors.length > 0
-      ? 'Showing last cached database reading'
-      : 'Waiting for database sensor data';
+      ? 'Showing the last saved sensor reading'
+      : 'Waiting for sensor data';
   }, [dataState, sensors.length]);
 
   const getStatus = (sensor) => {

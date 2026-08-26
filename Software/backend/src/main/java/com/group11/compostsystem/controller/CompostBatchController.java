@@ -8,6 +8,8 @@ import com.group11.compostsystem.service.AuthService;
 import com.group11.compostsystem.service.CompostBatchService;
 import org.springframework.dao.DataAccessException;
 import org.springframework.dao.EmptyResultDataAccessException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -25,6 +27,8 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/compost-batches")
 public class CompostBatchController {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(CompostBatchController.class);
 
     private final CompostBatchService compostBatchService;
     private final AuthService authService;
@@ -71,7 +75,7 @@ public class CompostBatchController {
         } catch (EmptyResultDataAccessException e) {
             return ResponseEntity.status(401).body(error("Session is expired or invalid."));
         } catch (DataAccessException e) {
-            return ResponseEntity.badRequest().body(error(e.getMostSpecificCause().getMessage()));
+            return batchServiceUnavailable("create", e);
         }
     }
 
@@ -87,7 +91,7 @@ public class CompostBatchController {
         } catch (EmptyResultDataAccessException e) {
             return ResponseEntity.status(404).body(error("Compost batch or session was not found."));
         } catch (DataAccessException e) {
-            return ResponseEntity.badRequest().body(error(e.getMostSpecificCause().getMessage()));
+            return batchServiceUnavailable("update", e);
         }
     }
 
@@ -102,7 +106,7 @@ public class CompostBatchController {
         } catch (EmptyResultDataAccessException e) {
             return ResponseEntity.status(404).body(error("Compost batch or session was not found."));
         } catch (DataAccessException e) {
-            return ResponseEntity.badRequest().body(error(e.getMostSpecificCause().getMessage()));
+            return batchServiceUnavailable("activate", e);
         }
     }
 
@@ -118,7 +122,7 @@ public class CompostBatchController {
         } catch (EmptyResultDataAccessException e) {
             return ResponseEntity.status(404).body(error("Compost batch or session was not found."));
         } catch (DataAccessException e) {
-            return ResponseEntity.badRequest().body(error(e.getMostSpecificCause().getMessage()));
+            return batchServiceUnavailable("update status for", e);
         }
     }
 
@@ -143,6 +147,13 @@ public class CompostBatchController {
         return Map.of(
                 "success", false,
                 "message", message
+        );
+    }
+
+    private ResponseEntity<?> batchServiceUnavailable(String operation, DataAccessException exception) {
+        LOGGER.warn("Could not {} a compost batch because of a database error.", operation, exception);
+        return ResponseEntity.status(503).body(
+                error("We couldn't save the compost batch changes right now. Please try again shortly.")
         );
     }
 }

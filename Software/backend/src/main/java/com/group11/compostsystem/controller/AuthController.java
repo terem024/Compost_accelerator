@@ -10,6 +10,8 @@ import com.group11.compostsystem.dto.VerifyOtpRequest;
 import com.group11.compostsystem.service.AuthService;
 import com.group11.compostsystem.service.OtpService;
 import jakarta.servlet.http.HttpServletRequest;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataAccessException;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.http.ResponseEntity;
@@ -18,6 +20,8 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api/auth")
 public class AuthController {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(AuthController.class);
 
     private final AuthService authService;
     private final OtpService otpService;
@@ -52,8 +56,9 @@ public class AuthController {
                     new AuthResponse(false, e.getMessage(), null)
             );
         } catch (DataAccessException e) {
-            return ResponseEntity.badRequest().body(
-                    new AuthResponse(false, "Registration failed: " + e.getMostSpecificCause().getMessage(), null)
+            LOGGER.warn("Registration could not be completed because of a database error.", e);
+            return ResponseEntity.status(503).body(
+                    new AuthResponse(false, "We couldn't create your account right now. Please try again shortly.", null)
             );
         }
     }
@@ -70,8 +75,9 @@ public class AuthController {
                     new ApiResponse(false, e.getMessage())
             );
         } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().body(
-                    new ApiResponse(false, "Unable to send OTP email. Check the backend email configuration.")
+            LOGGER.warn("Registration OTP email could not be sent.", e);
+            return ResponseEntity.status(503).body(
+                    new ApiResponse(false, "We couldn't send the verification code right now. Please try again shortly.")
             );
         }
     }
@@ -117,8 +123,9 @@ public class AuthController {
                     new AuthResponse(false, e.getMessage(), null)
             );
         } catch (DataAccessException e) {
-            return ResponseEntity.badRequest().body(
-                    new AuthResponse(false, "Login failed: " + e.getMostSpecificCause().getMessage(), null)
+            LOGGER.warn("Login could not be completed because of a database error.", e);
+            return ResponseEntity.status(503).body(
+                    new AuthResponse(false, "We couldn't sign you in right now. Please try again shortly.", null)
             );
         }
     }
@@ -163,8 +170,9 @@ public class AuthController {
                     new AuthResponse(false, e.getMessage(), null)
             );
         } catch (DataAccessException e) {
-            return ResponseEntity.badRequest().body(
-                    new AuthResponse(false, "Logout failed: " + e.getMostSpecificCause().getMessage(), null)
+            LOGGER.warn("Logout could not be completed because of a database error.", e);
+            return ResponseEntity.status(503).body(
+                    new AuthResponse(false, "We couldn't sign you out normally, but your session has been cleared.", null)
             );
         }
     }

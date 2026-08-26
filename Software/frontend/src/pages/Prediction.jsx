@@ -538,7 +538,7 @@ function Prediction({ user, online }) {
             {!prediction && !loading && !predictionError && (
               <p>
                 No prediction generated yet. Click the generate button to request
-                an AI prediction from the Spring Boot backend.
+                an analysis of this compost batch.
               </p>
             )}
 

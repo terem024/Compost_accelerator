@@ -7,6 +7,8 @@ import com.group11.compostsystem.service.AuthService;
 import com.group11.compostsystem.service.ThresholdService;
 import org.springframework.dao.DataAccessException;
 import org.springframework.dao.EmptyResultDataAccessException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -15,6 +17,8 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/settings")
 public class SettingsController {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(SettingsController.class);
 
     private final ThresholdService thresholdService;
     private final AuthService authService;
@@ -45,7 +49,10 @@ public class SettingsController {
         } catch (EmptyResultDataAccessException e) {
             return ResponseEntity.status(401).body(error("Session is expired or invalid."));
         } catch (DataAccessException e) {
-            return ResponseEntity.badRequest().body(error(e.getMostSpecificCause().getMessage()));
+            LOGGER.warn("Threshold settings could not be saved because of a database error.", e);
+            return ResponseEntity.status(503).body(
+                    error("We couldn't save your settings right now. Please try again shortly.")
+            );
         }
     }
 

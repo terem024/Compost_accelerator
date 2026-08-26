@@ -61,10 +61,10 @@ async function request(path, options = {}) {
     });
   } catch (error) {
     if (error?.name === 'AbortError') {
-      throw new Error('The server took too long to respond. Please try again.');
+      throw new Error('This is taking longer than expected. Please try again.');
     }
 
-    throw new Error(`Unable to connect to the backend server at ${API_BASE_URL}.`);
+    throw new Error("We couldn't complete your request. Check your connection and try again.");
   } finally {
     window.clearTimeout(timeoutId);
   }
@@ -80,7 +80,7 @@ async function request(path, options = {}) {
     data = text ? JSON.parse(text) : null;
   } catch {
     if (!response.ok) {
-      throw new Error(`The backend returned an unexpected response (${response.status}).`);
+      throw new Error('Something went wrong while processing your request. Please try again.');
     }
   }
 
