@@ -1,0 +1,45 @@
+# =========================
+# Java / Maven
+# =========================
+target/
+*.class
+*.jar
+*.war
+
+# =========================
+# IntelliJ
+# =========================
+.idea/
+*.iml
+
+# =========================
+# VS Code
+# =========================
+.vscode/
+
+# =========================
+# Node
+# =========================
+node_modules/
+npm-debug.log*
+
+# Build output
+frontend/dist/
+
+# Environment variables
+.env
+.env.*
+
+# Logs
+logs/
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# =========================
+# ESP32 / PlatformIO
+# =========================
+.pio/
+.vscode/.browse.c_cpp.db*

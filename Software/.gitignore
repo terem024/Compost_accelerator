@@ -1,0 +1,11 @@
+node_modules/
+frontend/node_modules/
+frontend/.vite/
+.DS_Store
+/dist
+.env
+backend/*.log
+database/compost_system.sql
+database/*backup*.sql
+database/emergency-recovery-*.sql
+database/recovered-compost-system-*.sql

@@ -1,0 +1,14 @@
+{
+	"folders": [
+		{
+			"path": "../../../../../../../.."
+		},
+		{
+			"name": "compost_accelerator",
+			"path": "../../../../../../../../../../../Users/diogr/Documents/PlatformIO/Projects/compost_accelerator"
+		}
+	],
+	"settings": {
+		"java.configuration.updateBuildConfiguration": "interactive"
+	}
+}
