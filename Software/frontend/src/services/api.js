@@ -1,4 +1,6 @@
-const API_BASE_URL = 'http://localhost:8080/api';
+const API_BASE_URL = (
+  import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api'
+).replace(/\/$/, '');
 const AUTH_SESSION_KEY = 'compostAuthSession';
 
 export function getStoredAuthSession() {
@@ -55,9 +57,7 @@ async function request(path, options = {}) {
       ...options,
     });
   } catch {
-    throw new Error(
-      'Unable to connect to the backend server. Make sure Spring Boot is running on http://localhost:8080.'
-    );
+    throw new Error(`Unable to connect to the backend server at ${API_BASE_URL}.`);
   }
 
   if (response.status === 204) {

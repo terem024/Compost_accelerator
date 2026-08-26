@@ -10,7 +10,6 @@ import com.group11.compostsystem.service.ActuatorLogService;
 import com.group11.compostsystem.service.SensorReadingService;
 import com.group11.compostsystem.service.ThresholdService;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -21,10 +20,6 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api")
-@CrossOrigin(origins = {
-        "http://localhost:5173",
-        "http://127.0.0.1:5173"
-})
 public class SensorController {
 
     private final SensorReadingService sensorReadingService;
