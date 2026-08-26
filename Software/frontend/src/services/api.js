@@ -44,6 +44,8 @@ export function clearStoredAuthSession() {
 async function request(path, options = {}) {
   const storedSession = getStoredAuthSession();
   const token = storedSession?.sessionToken;
+  const controller = new AbortController();
+  const timeoutId = window.setTimeout(() => controller.abort(), 20000);
 
   let response;
 
@@ -55,9 +57,16 @@ async function request(path, options = {}) {
         ...(options.headers || {}),
       },
       ...options,
+      signal: controller.signal,
     });
-  } catch {
+  } catch (error) {
+    if (error?.name === 'AbortError') {
+      throw new Error('The server took too long to respond. Please try again.');
+    }
+
     throw new Error(`Unable to connect to the backend server at ${API_BASE_URL}.`);
+  } finally {
+    window.clearTimeout(timeoutId);
   }
 
   if (response.status === 204) {
@@ -65,7 +74,15 @@ async function request(path, options = {}) {
   }
 
   const text = await response.text();
-  const data = text ? JSON.parse(text) : null;
+  let data = null;
+
+  try {
+    data = text ? JSON.parse(text) : null;
+  } catch {
+    if (!response.ok) {
+      throw new Error(`The backend returned an unexpected response (${response.status}).`);
+    }
+  }
 
   if (!response.ok || data?.success === false) {
     if (response.status === 401) {
