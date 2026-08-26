@@ -227,7 +227,7 @@ function Register({ onRegister }) {
           </label>
 
           <button type="submit" className="primary-button" disabled={loading}>
-            {loading ? 'Creating account...' : 'Register'}
+            {loading ? (otpSent ? 'Please wait...' : 'Sending OTP...') : 'Register'}
           </button>
 
           {otpSent && (
