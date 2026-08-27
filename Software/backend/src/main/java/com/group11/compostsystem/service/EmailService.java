@@ -3,6 +3,9 @@ package com.group11.compostsystem.service;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
@@ -14,15 +17,24 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.Map;
+import java.util.Locale;
+import java.util.concurrent.Executor;
+import java.util.concurrent.RejectedExecutionException;
 
 @Service
 public class EmailService {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(EmailService.class);
     private static final URI RESEND_EMAIL_ENDPOINT = URI.create("https://api.resend.com/emails");
 
     private final JavaMailSender mailSender;
     private final HttpClient httpClient;
     private final ObjectMapper objectMapper;
+    private final GmailApiEmailSender gmailApiEmailSender;
+    private final Executor notificationExecutor;
+
+    @Value("${app.email.provider:auto}")
+    private String provider = "auto";
 
     @Value("${spring.mail.username:}")
     private String fromEmail;
@@ -36,8 +48,11 @@ public class EmailService {
     @Value("${app.notification.email:}")
     private String notificationEmail;
 
-    public EmailService(JavaMailSender mailSender) {
+    public EmailService(JavaMailSender mailSender, GmailApiEmailSender gmailApiEmailSender,
+                        @Qualifier("notificationEmailExecutor") Executor notificationExecutor) {
         this.mailSender = mailSender;
+        this.gmailApiEmailSender = gmailApiEmailSender;
+        this.notificationExecutor = notificationExecutor;
         this.httpClient = HttpClient.newBuilder()
                 .connectTimeout(Duration.ofSeconds(10))
                 .build();
@@ -83,10 +98,7 @@ public class EmailService {
             return;
         }
 
-        sendEmail(
-                notificationEmail,
-                "IoT Compost Accelerator - Actuator Activated",
-                """
+        String body = """
                 Actuator Activation Notification
 
                 Actuator: %s
@@ -97,8 +109,19 @@ public class EmailService {
                 %s
 
                 This is an automated notification from your IoT Compost Accelerator system.
-                """.formatted(actuatorName, activationStatus, timestamp, sensorReadings)
-        );
+                """.formatted(actuatorName, activationStatus, timestamp, sensorReadings);
+        // Optional alerts must never delay or prevent returning an actuator command to the ESP32.
+        try {
+            notificationExecutor.execute(() -> {
+                try {
+                    sendEmail(notificationEmail, "IoT Compost Accelerator - Actuator Activated", body);
+                } catch (RuntimeException e) {
+                    LOGGER.warn("Actuator notification could not be sent ({}).", e.getClass().getSimpleName());
+                }
+            });
+        } catch (RejectedExecutionException e) {
+            LOGGER.warn("Actuator notification skipped because the email queue is full or shutting down.");
+        }
     }
 
     private void sendEmail(String toEmail, String subject, String body) {
@@ -106,15 +129,27 @@ public class EmailService {
             throw new IllegalArgumentException("Recipient email address cannot be empty.");
         }
 
-        if (resendApiKey != null && !resendApiKey.isBlank()) {
-            sendWithResend(toEmail, subject, body);
-            return;
+        switch (provider.trim().toLowerCase(Locale.ROOT)) {
+            case "gmail-api" -> gmailApiEmailSender.send(toEmail, subject, body);
+            case "resend" -> sendWithResend(toEmail, subject, body);
+            case "smtp" -> sendWithSmtp(toEmail, subject, body);
+            case "auto" -> {
+                if (gmailApiEmailSender.hasConfiguration()) {
+                    gmailApiEmailSender.send(toEmail, subject, body);
+                } else if (resendApiKey != null && !resendApiKey.isBlank()) {
+                    sendWithResend(toEmail, subject, body);
+                } else {
+                    sendWithSmtp(toEmail, subject, body);
+                }
+            }
+            default -> throw new IllegalStateException("Unsupported EMAIL_PROVIDER configuration.");
         }
-
-        sendWithSmtp(toEmail, subject, body);
     }
 
     private void sendWithResend(String toEmail, String subject, String body) {
+        if (resendApiKey == null || resendApiKey.isBlank()) {
+            throw new IllegalStateException("RESEND_API_KEY is not configured.");
+        }
         if (resendFromEmail == null || resendFromEmail.isBlank()) {
             throw new IllegalStateException("RESEND_FROM_EMAIL is not configured.");
         }

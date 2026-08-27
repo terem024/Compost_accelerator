@@ -42,23 +42,26 @@ export function clearStoredAuthSession() {
 }
 
 async function request(path, options = {}) {
+  const { timeoutMs = 20000, ...fetchOptions } = options;
   const storedSession = getStoredAuthSession();
   const token = storedSession?.sessionToken;
   const controller = new AbortController();
-  const timeoutId = window.setTimeout(() => controller.abort(), 20000);
+  const timeoutId = window.setTimeout(() => controller.abort(), timeoutMs);
 
   let response;
+  let text;
 
   try {
     response = await fetch(`${API_BASE_URL}${path}`, {
+      ...fetchOptions,
       headers: {
         'Content-Type': 'application/json',
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        ...(options.headers || {}),
+        ...(fetchOptions.headers || {}),
       },
-      ...options,
       signal: controller.signal,
     });
+    text = response.status === 204 ? '' : await response.text();
   } catch (error) {
     if (error?.name === 'AbortError') {
       throw new Error('This is taking longer than expected. Please try again.');
@@ -73,15 +76,12 @@ async function request(path, options = {}) {
     return null;
   }
 
-  const text = await response.text();
   let data = null;
 
   try {
     data = text ? JSON.parse(text) : null;
   } catch {
-    if (!response.ok) {
-      throw new Error('Something went wrong while processing your request. Please try again.');
-    }
+    throw new Error('Something went wrong while processing your request. Please try again.');
   }
 
   if (!response.ok || data?.success === false) {
@@ -128,6 +128,7 @@ export async function registerUser(profile) {
 export async function sendOtpEmail(email) {
   return request('/auth/send-otp', {
     method: 'POST',
+    timeoutMs: 45000,
     body: JSON.stringify({
       email: email.trim(),
     }),
@@ -165,6 +166,7 @@ export async function logoutUser() {
 export async function forgotPassword(email) {
   return request('/auth/forgot-password', {
     method: 'POST',
+    timeoutMs: 45000,
     body: JSON.stringify({
       email: email.trim(),
     }),
