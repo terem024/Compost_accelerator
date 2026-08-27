@@ -421,8 +421,8 @@ BEGIN
 END$$
 
 CREATE PROCEDURE `sp_update_actuator_runtime_status` (
-  IN `p_actuator_type` VARCHAR(20),
-  IN `p_current_status` VARCHAR(10),
+  IN `p_actuator_type` VARCHAR(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci,
+  IN `p_current_status` VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci,
   IN `p_last_activated_at` DATETIME,
   IN `p_cooldown_until` DATETIME,
   IN `p_last_duration_seconds` INT

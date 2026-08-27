@@ -1851,6 +1851,16 @@ button {
   color: #cbd5e1;
 }
 
+.session-recovery {
+  width: min(480px, 100%);
+  padding: 24px;
+  text-align: center;
+  box-sizing: border-box;
+}
+
+.session-recovery h1 { font-size: 24px; margin: 0 0 16px; }
+.session-recovery p { font-weight: 400; line-height: 1.6; margin: 0 0 20px; }
+
 .app-loading {
   min-height: 100vh;
   display: grid;

@@ -1,8 +1,11 @@
 #include <Arduino.h>
 #include <WiFi.h>
+#include <WiFiClientSecure.h>
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
 #include <DHT.h>
+#include <time.h>
+#include "backend_ca.h"
 #include "secrets.h"
 
 //
@@ -32,10 +35,14 @@
 
 #define SENSOR_INTERVAL_MS      60000UL
 #define WIFI_CONNECT_TIMEOUT_MS 15000UL
+#define TIME_SYNC_TIMEOUT_MS    15000UL
 #define HTTP_TIMEOUT_MS         10000
 #define HTTP_RETRY_COUNT        3
 #define HTTP_RETRY_DELAY_MS     5000UL
 #define QUEUE_LENGTH            2
+
+// ESP32 task stack sizes are bytes. TLS certificate checks exceed the old 8 KiB stack.
+constexpr uint32_t SENDER_STACK_BYTES = 24 * 1024;
 
 // ADC calibration for moisture sensors.
 // Adjust if your sensor output curve differs.
@@ -262,6 +269,28 @@ static bool ensureWiFiConnected() {
   return false;
 }
 
+static bool ensureClockSynchronized() {
+  // Certificate validity checks require a real clock after power-on.
+  constexpr time_t MIN_VALID_TIME = 1767225600; // 2026-01-01 UTC
+  if (time(nullptr) >= MIN_VALID_TIME) {
+    return true;
+  }
+
+  Serial.println("[TIME] Synchronizing clock for HTTPS");
+  configTime(0, 0, "pool.ntp.org", "time.google.com", "time.cloudflare.com");
+  const unsigned long start = millis();
+  while (millis() - start < TIME_SYNC_TIMEOUT_MS) {
+    if (time(nullptr) >= MIN_VALID_TIME) {
+      Serial.println("[TIME] Clock synchronized");
+      return true;
+    }
+    vTaskDelay(pdMS_TO_TICKS(250));
+  }
+
+  Serial.println("[TIME] Clock sync timed out; HTTPS send skipped. Check WiFi internet access.");
+  return false;
+}
+
 static bool sendReadingToBackend(const SensorPayload &payload) {
   if (!ensureWiFiConnected()) {
     return false;
@@ -279,11 +308,30 @@ static bool sendReadingToBackend(const SensorPayload &payload) {
   serializeJson(doc, body);
 
   const String url = String(BACKEND_URL) + BACKEND_PATH;
+  const bool useHttps = url.startsWith("https://");
+  if (!useHttps && !url.startsWith("http://")) {
+    Serial.println("[HTTP] BACKEND_URL must start with http:// or https://");
+    return false;
+  }
+  if (useHttps && !ensureClockSynchronized()) {
+    return false;
+  }
   bool success = false;
 
   for (int attempt = 1; attempt <= HTTP_RETRY_COUNT; ++attempt) {
+    WiFiClient plainClient;
+    WiFiClientSecure secureClient;
+    if (useHttps) {
+      secureClient.setCACert(BACKEND_ROOT_CA);
+      secureClient.setHandshakeTimeout(15);
+    }
+    WiFiClient &client = useHttps ? static_cast<WiFiClient &>(secureClient) : plainClient;
     HTTPClient http;
-    http.begin(url);
+    if (!http.begin(client, url)) {
+      Serial.println("[HTTP] Could not initialize backend connection");
+      return false;
+    }
+    http.setConnectTimeout(HTTP_TIMEOUT_MS);
     http.setTimeout(HTTP_TIMEOUT_MS);
     http.addHeader("Content-Type", "application/json");
 
@@ -341,6 +389,9 @@ void senderTask(void *param) {
       if (!sendReadingToBackend(payload)) {
         Serial.println("[HTTP] Failed to send reading after retries");
       }
+      Serial.printf("[MEMORY] SenderTask minimum free stack=%u bytes, free heap=%u bytes\n",
+                    static_cast<unsigned int>(uxTaskGetStackHighWaterMark(nullptr)),
+                    static_cast<unsigned int>(ESP.getFreeHeap()));
     }
   }
 }
@@ -348,6 +399,8 @@ void senderTask(void *param) {
 void setup() {
   Serial.begin(115200);
   delay(1000);
+  Serial.printf("[SETUP] Backend URL=%s%s\n", BACKEND_URL, BACKEND_PATH);
+  Serial.printf("[SETUP] Sensor interval=%lu ms\n", SENSOR_INTERVAL_MS);
 
 #if ENABLE_RELAY_CONTROL
   initializeRelays();
@@ -382,8 +435,22 @@ void setup() {
     }
   }
 
-  xTaskCreatePinnedToCore(sensorTask, "SensorTask", 4096, nullptr, 1, nullptr, 1);
-  xTaskCreatePinnedToCore(senderTask, "SenderTask", 8192, nullptr, 1, nullptr, 1);
+  Serial.printf("[SETUP] SenderTask stack=%u bytes\n", static_cast<unsigned int>(SENDER_STACK_BYTES));
+  TaskHandle_t senderHandle = nullptr;
+  const BaseType_t senderCreated = xTaskCreatePinnedToCore(
+      senderTask, "SenderTask", SENDER_STACK_BYTES, nullptr, 1, &senderHandle, 1);
+  const BaseType_t sensorCreated = senderCreated == pdPASS
+      ? xTaskCreatePinnedToCore(sensorTask, "SensorTask", 4096, nullptr, 1, nullptr, 1)
+      : pdFAIL;
+  if (senderCreated != pdPASS || sensorCreated != pdPASS) {
+    if (senderHandle != nullptr) {
+      vTaskDelete(senderHandle);
+    }
+    Serial.println("[ERROR] Not enough memory to start sensor/sender tasks. Relays remain off.");
+    while (true) {
+      vTaskDelay(pdMS_TO_TICKS(1000));
+    }
+  }
 
   Serial.println("[SETUP] Firmware initialized");
 }

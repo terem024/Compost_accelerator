@@ -14,7 +14,6 @@ import AppErrorBoundary from './components/AppErrorBoundary.jsx';
 import SessionTimeoutModal from './components/SessionTimeoutModal.jsx';
 import ToastContainer from './components/ToastContainer.jsx';
 import {
-  clearStoredAuthSession,
   getStoredAuthSession,
   logoutUser,
   validateSession,
@@ -24,28 +23,36 @@ function App() {
   const location = useLocation();
   const [authSession, setAuthSession] = useState(() => getStoredAuthSession());
   const [checkingSession, setCheckingSession] = useState(true);
+  const [sessionError, setSessionError] = useState(null);
+  const [sessionAttempt, setSessionAttempt] = useState(0);
   const [online] = useState(true);
   const user = authSession?.user || null;
 
   useEffect(() => {
     let active = true;
     const storedSession = getStoredAuthSession();
+    setSessionError(null);
 
     if (!storedSession) {
+      setAuthSession(null);
       setCheckingSession(false);
       return undefined;
     }
 
+    setCheckingSession(true);
     validateSession()
       .then((session) => {
         if (active) {
           setAuthSession(session);
         }
       })
-      .catch(() => {
-        clearStoredAuthSession();
+      .catch((error) => {
         if (active) {
-          setAuthSession(null);
+          if (error.status === 401 || !getStoredAuthSession()) {
+            setAuthSession(null);
+          } else {
+            setSessionError("We couldn't reconnect to your account. Please try again shortly.");
+          }
         }
       })
       .finally(() => {
@@ -57,31 +64,68 @@ function App() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [sessionAttempt]);
+
+  useEffect(() => {
+    if (!sessionError) return undefined;
+    const retry = () => setSessionAttempt((attempt) => attempt + 1);
+    const timer = window.setTimeout(retry, 10000);
+    window.addEventListener('online', retry);
+    return () => {
+      window.clearTimeout(timer);
+      window.removeEventListener('online', retry);
+    };
+  }, [sessionError]);
 
   const handleLogin = useCallback((session) => {
     setAuthSession(session);
   }, []);
 
   const handleLogout = useCallback(async () => {
-    await logoutUser();
-    setAuthSession(null);
+    try {
+      await logoutUser();
+    } catch {
+      // Local logout must still complete when the server is unavailable.
+    } finally {
+      setAuthSession(null);
+      setSessionError(null);
+    }
   }, []);
 
-  const { showWarning, resetTimer } = useInactivityTimeout(handleLogout, !!user);
+  const { showWarning, resetTimer } = useInactivityTimeout(
+    handleLogout, !!user && !checkingSession && !sessionError,
+  );
 
   const handleStayLoggedIn = async () => {
     try {
       const session = await validateSession();
       setAuthSession(session);
       resetTimer();
-    } catch {
-      await handleLogout();
+    } catch (error) {
+      if (error.status === 401 || !getStoredAuthSession()) {
+        setAuthSession(null);
+      } else {
+        setSessionError("We couldn't reconnect to your account. Please try again shortly.");
+      }
     }
   };
 
   if (checkingSession) {
-    return <div className="app-loading">Checking session...</div>;
+    return <div className="app-loading" role="status">Checking session...</div>;
+  }
+
+  if (sessionError) {
+    return (
+      <main className="app-loading">
+        <section className="session-recovery" role="alert">
+          <h1>Connection interrupted</h1>
+          <p>{sessionError}</p>
+          <button className="button button-secondary" onClick={() => setSessionAttempt((attempt) => attempt + 1)}>
+            Try again
+          </button>
+        </section>
+      </main>
+    );
   }
 
   return (

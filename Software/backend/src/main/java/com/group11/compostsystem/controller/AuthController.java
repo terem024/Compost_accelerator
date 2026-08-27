@@ -144,7 +144,7 @@ public class AuthController {
                     )
             );
         } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().body(
+            return ResponseEntity.status(401).body(
                     new AuthResponse(false, e.getMessage(), null)
             );
         } catch (EmptyResultDataAccessException e) {
@@ -152,8 +152,9 @@ public class AuthController {
                     new AuthResponse(false, "Session is expired or invalid.", null)
             );
         } catch (DataAccessException e) {
-            return ResponseEntity.status(401).body(
-                    new AuthResponse(false, "Session validation failed.", null)
+            LOGGER.warn("Session validation is temporarily unavailable because of a database error.", e);
+            return ResponseEntity.status(503).body(
+                    new AuthResponse(false, "We couldn't check your session right now. Please try again shortly.", null)
             );
         }
     }

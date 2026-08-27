@@ -153,15 +153,15 @@ DROP PROCEDURE IF EXISTS `sp_get_actuator_summary`;
 DELIMITER $$
 
 CREATE PROCEDURE `sp_register_user` (
-  IN `p_name` VARCHAR(100),
-  IN `p_email` VARCHAR(150),
-  IN `p_password` VARCHAR(255)
+  IN `p_name` VARCHAR(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci,
+  IN `p_email` VARCHAR(150) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci,
+  IN `p_password` VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci
 )
 BEGIN
-  DECLARE `v_name` VARCHAR(100);
-  DECLARE `v_username` VARCHAR(150);
-  DECLARE `v_salt` VARCHAR(64);
-  DECLARE `v_password_hash` VARCHAR(255);
+  DECLARE `v_name` VARCHAR(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
+  DECLARE `v_username` VARCHAR(150) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
+  DECLARE `v_salt` VARCHAR(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
+  DECLARE `v_password_hash` VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
 
   SET `v_name` = TRIM(COALESCE(`p_name`, ''));
   SET `v_username` = LOWER(TRIM(COALESCE(`p_email`, '')));
@@ -206,11 +206,11 @@ BEGIN
 END$$
 
 CREATE PROCEDURE `sp_login_user` (
-  IN `p_username_or_email` VARCHAR(150),
-  IN `p_password` VARCHAR(255)
+  IN `p_username_or_email` VARCHAR(150) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci,
+  IN `p_password` VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci
 )
 BEGIN
-  DECLARE `v_identifier` VARCHAR(150);
+  DECLARE `v_identifier` VARCHAR(150) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
 
   SET `v_identifier` = LOWER(TRIM(COALESCE(`p_username_or_email`, '')));
 
@@ -266,7 +266,7 @@ BEGIN
 END$$
 
 CREATE PROCEDURE `sp_validate_user_session` (
-  IN `p_session_token_hash` CHAR(64)
+  IN `p_session_token_hash` CHAR(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci
 )
 BEGIN
   UPDATE `user_sessions`
@@ -300,7 +300,7 @@ BEGIN
 END$$
 
 CREATE PROCEDURE `sp_refresh_user_session` (
-  IN `p_session_token_hash` CHAR(64),
+  IN `p_session_token_hash` CHAR(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci,
   IN `p_expires_at` DATETIME
 )
 BEGIN
@@ -337,7 +337,7 @@ BEGIN
 END$$
 
 CREATE PROCEDURE `sp_logout_user_session` (
-  IN `p_session_token_hash` CHAR(64)
+  IN `p_session_token_hash` CHAR(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci
 )
 BEGIN
   UPDATE `user_sessions`

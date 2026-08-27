@@ -3,6 +3,13 @@ const API_BASE_URL = (
 ).replace(/\/$/, '');
 const AUTH_SESSION_KEY = 'compostAuthSession';
 
+class ApiError extends Error {
+  constructor(message, status = 0) {
+    super(message);
+    this.status = status;
+  }
+}
+
 export function getStoredAuthSession() {
   try {
     const savedSession = localStorage.getItem(AUTH_SESSION_KEY);
@@ -64,10 +71,10 @@ async function request(path, options = {}) {
     text = response.status === 204 ? '' : await response.text();
   } catch (error) {
     if (error?.name === 'AbortError') {
-      throw new Error('This is taking longer than expected. Please try again.');
+      throw new ApiError('This is taking longer than expected. Please try again.');
     }
 
-    throw new Error("We couldn't complete your request. Check your connection and try again.");
+    throw new ApiError("We couldn't complete your request. Check your connection and try again.");
   } finally {
     window.clearTimeout(timeoutId);
   }
@@ -78,18 +85,20 @@ async function request(path, options = {}) {
 
   let data = null;
 
+  // A stale request must not clear a newer login, and OTP failures are not session failures.
+  if (response.status === 401 && (path === '/auth/session' || !path.startsWith('/auth/'))
+      && getStoredAuthSession()?.sessionToken === token) {
+    clearStoredAuthSession();
+  }
+
   try {
     data = text ? JSON.parse(text) : null;
   } catch {
-    throw new Error('Something went wrong while processing your request. Please try again.');
+    throw new ApiError('Something went wrong while processing your request. Please try again.', response.status);
   }
 
   if (!response.ok || data?.success === false) {
-    if (response.status === 401) {
-      clearStoredAuthSession();
-    }
-
-    throw new Error(data?.message || 'Request failed.');
+    throw new ApiError(data?.message || 'Request failed.', response.status);
   }
 
   return data;
@@ -145,12 +154,29 @@ export async function verifyOtp(email, otp) {
   });
 }
 
-export async function validateSession() {
-  const data = await request('/auth/session', {
-    method: 'GET',
-  });
+let sessionValidation = null;
 
-  return storeAuthSession(data);
+export function validateSession() {
+  const token = getStoredAuthSession()?.sessionToken;
+  if (!token) return Promise.reject(new ApiError('Please sign in again.', 401));
+  if (sessionValidation?.token === token) return sessionValidation.promise;
+
+  const pending = { token };
+  pending.promise = request('/auth/session', { method: 'GET', cache: 'no-store' })
+    .then((data) => {
+      if (getStoredAuthSession()?.sessionToken !== token) {
+        throw new ApiError('Your session changed. Please try again.');
+      }
+      if (!data?.user || data.sessionToken !== token || !data.expiresAt) {
+        throw new ApiError("We couldn't check your session right now. Please try again shortly.");
+      }
+      return storeAuthSession(data);
+    })
+    .finally(() => {
+      if (sessionValidation === pending) sessionValidation = null;
+    });
+  sessionValidation = pending;
+  return pending.promise;
 }
 
 export async function logoutUser() {
