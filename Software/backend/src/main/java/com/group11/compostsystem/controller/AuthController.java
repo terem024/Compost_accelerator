@@ -13,6 +13,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataAccessException;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -36,12 +37,13 @@ public class AuthController {
                                                  HttpServletRequest servletRequest) {
         try {
             authService.validateRegisterRequest(request);
-            otpService.consumeVerifiedEmail(request == null ? null : request.getEmail());
+            otpService.requireVerifiedEmail(request == null ? null : request.getEmail());
             AuthResult result = authService.register(
                     request,
                     getClientIp(servletRequest),
                     servletRequest.getHeader("User-Agent")
             );
+            otpService.consumeVerifiedEmail(request.getEmail());
             return ResponseEntity.ok(
                     new AuthResponse(
                             true,
@@ -54,6 +56,10 @@ public class AuthController {
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(
                     new AuthResponse(false, e.getMessage(), null)
+            );
+        } catch (DuplicateKeyException e) {
+            return ResponseEntity.badRequest().body(
+                    new AuthResponse(false, "Email is already registered.", null)
             );
         } catch (DataAccessException e) {
             LOGGER.warn("Registration could not be completed because of a database error.", e);

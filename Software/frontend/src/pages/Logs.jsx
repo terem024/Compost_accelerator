@@ -7,6 +7,7 @@ import {
 } from '../services/api.js';
 
 const PAGE_SIZE_OPTIONS = [10, 25, 50];
+const CONNECTION_PAGE_SIZE = 10;
 
 function PaginationControls({
   page,
@@ -27,7 +28,7 @@ function PaginationControls({
       </div>
 
       <div className="logs-page-controls">
-        <label>
+        {onPageSizeChange && <label>
           Rows
           <select
             value={pageSize}
@@ -39,7 +40,7 @@ function PaginationControls({
               </option>
             ))}
           </select>
-        </label>
+        </label>}
 
         <button
           type="button"
@@ -86,6 +87,7 @@ function Logs({ user, online, setOnline }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [sensorPage, setSensorPage] = useState(1);
   const [actuatorPage, setActuatorPage] = useState(1);
+  const [connectionPage, setConnectionPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
 
   useEffect(() => {
@@ -172,6 +174,12 @@ function Logs({ user, online, setOnline }) {
   const actuatorTotalPages = Math.max(1, Math.ceil(filteredActuatorLogs.length / pageSize));
   const safeSensorPage = Math.min(sensorPage, sensorTotalPages);
   const safeActuatorPage = Math.min(actuatorPage, actuatorTotalPages);
+  const connectionTotalPages = Math.max(1, Math.ceil(connectionLogs.length / CONNECTION_PAGE_SIZE));
+  const safeConnectionPage = Math.min(connectionPage, connectionTotalPages);
+  const pagedConnectionLogs = connectionLogs.slice(
+    (safeConnectionPage - 1) * CONNECTION_PAGE_SIZE,
+    safeConnectionPage * CONNECTION_PAGE_SIZE
+  );
 
   const pagedReadings = useMemo(() => {
     const start = (safeSensorPage - 1) * pageSize;
@@ -318,7 +326,7 @@ function Logs({ user, online, setOnline }) {
                 <td colSpan="4" className="empty-state">No ESP32 connection events have been logged.</td>
               </tr>
             ) : (
-              connectionLogs.map((log) => (
+              pagedConnectionLogs.map((log) => (
                 <tr key={log.logId}>
                   <td>{formatDateTime(log.occurredAt)}</td>
                   <td>{log.eventType === 'RECONNECTED' ? 'Connection regained' : 'Connection lost'}</td>
@@ -329,6 +337,16 @@ function Logs({ user, online, setOnline }) {
             )}
           </tbody>
         </table>
+
+        {!loading && connectionLogs.length > 0 && (
+          <PaginationControls
+            page={safeConnectionPage}
+            pageSize={CONNECTION_PAGE_SIZE}
+            totalItems={connectionLogs.length}
+            totalPages={connectionTotalPages}
+            onPageChange={setConnectionPage}
+          />
+        )}
 
         <h3 className="logs-section-title">Actuator Log History</h3>
         <table className="logs-table">

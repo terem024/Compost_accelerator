@@ -60,7 +60,7 @@ public class OtpService {
         verifiedEmails.put(email, Instant.now().plus(Duration.ofMinutes(getSafeExpirationMinutes())));
     }
 
-    public void consumeVerifiedEmail(String rawEmail) {
+    public void requireVerifiedEmail(String rawEmail) {
         String email = normalizeEmail(rawEmail);
         Instant verifiedUntil = verifiedEmails.get(email);
 
@@ -69,7 +69,11 @@ public class OtpService {
             throw new IllegalArgumentException("Please verify the OTP sent to your email before creating an account.");
         }
 
-        verifiedEmails.remove(email);
+    }
+
+    public void consumeVerifiedEmail(String rawEmail) {
+        requireVerifiedEmail(rawEmail);
+        verifiedEmails.remove(normalizeEmail(rawEmail));
     }
 
     private String normalizeEmail(String rawEmail) {

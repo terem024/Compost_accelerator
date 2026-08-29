@@ -8,6 +8,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -68,6 +69,7 @@ public class AuthService {
         }
     }
 
+    @Transactional
     public AuthResult register(RegisterRequest request, String ipAddress, String userAgent) {
         validateRegisterRequest(request);
 
@@ -75,17 +77,33 @@ public class AuthService {
         String email = request.getEmail() == null ? "" : request.getEmail().trim().toLowerCase();
         String password = request.getPassword();
 
+        String salt = generateSalt();
+        String passwordHash = sha256Hex(salt + password);
+
+        jdbcTemplate.update(
+                """
+                INSERT INTO users (full_name, username, password_hash, password_salt, role)
+                VALUES (?, ?, ?, ?, 'OPERATOR')
+                """,
+                name,
+                email,
+                passwordHash,
+                salt
+        );
+
         UserResponse user = jdbcTemplate.queryForObject(
-                "CALL sp_register_user(?, ?, ?)",
+                """
+                SELECT user_id, full_name AS name, username AS email, role
+                FROM users
+                WHERE username = ?
+                """,
                 (rs, rowNum) -> new UserResponse(
                         rs.getLong("user_id"),
                         rs.getString("name"),
                         rs.getString("email"),
                         rs.getString("role")
                 ),
-                name,
-                email,
-                password
+                email
         );
 
         return createSession(user, ipAddress, userAgent);
@@ -195,24 +213,20 @@ public class AuthService {
         String tokenHash = hashToken(token);
         Timestamp expiresAt = buildExpiresAt();
 
-        return jdbcTemplate.queryForObject(
-                "CALL sp_create_user_session(?, ?, ?, ?, ?)",
-                (rs, rowNum) -> new AuthResult(
-                        new UserResponse(
-                                rs.getLong("user_id"),
-                                rs.getString("name"),
-                                rs.getString("email"),
-                                rs.getString("role")
-                        ),
-                        token,
-                        rs.getTimestamp("expires_at")
-                ),
+        jdbcTemplate.update(
+                """
+                INSERT INTO user_sessions
+                    (user_id, session_token_hash, expires_at, ip_address, user_agent, status)
+                VALUES (?, ?, ?, ?, ?, 'ACTIVE')
+                """,
                 user.getId(),
                 tokenHash,
                 expiresAt,
-                ipAddress,
-                userAgent
+                truncate(ipAddress, 45),
+                truncate(userAgent, 255)
         );
+
+        return new AuthResult(user, token, expiresAt);
     }
 
     private void recordLoginActivity(Long userId,
@@ -243,6 +257,19 @@ public class AuthService {
         return Base64.getUrlEncoder().withoutPadding().encodeToString(tokenBytes);
     }
 
+    private String generateSalt() {
+        byte[] saltBytes = new byte[32];
+        SECURE_RANDOM.nextBytes(saltBytes);
+        return toHex(saltBytes);
+    }
+
+    private String truncate(String value, int maxLength) {
+        if (value == null || value.length() <= maxLength) {
+            return value;
+        }
+        return value.substring(0, maxLength);
+    }
+
     private String normalizeToken(String rawSessionToken) {
         if (rawSessionToken == null || rawSessionToken.isBlank()) {
             throw new IllegalArgumentException("Session token is required.");
@@ -252,18 +279,23 @@ public class AuthService {
     }
 
     private String hashToken(String token) {
+        return sha256Hex(token);
+    }
+
+    private String sha256Hex(String value) {
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            byte[] hash = digest.digest(token.getBytes(StandardCharsets.UTF_8));
-            StringBuilder builder = new StringBuilder();
-
-            for (byte value : hash) {
-                builder.append(String.format("%02x", value));
-            }
-
-            return builder.toString();
+            return toHex(digest.digest(value.getBytes(StandardCharsets.UTF_8)));
         } catch (NoSuchAlgorithmException e) {
             throw new IllegalStateException("SHA-256 is not available.", e);
         }
+    }
+
+    private String toHex(byte[] bytes) {
+        StringBuilder builder = new StringBuilder(bytes.length * 2);
+        for (byte value : bytes) {
+            builder.append(String.format("%02x", value));
+        }
+        return builder.toString();
     }
 }

@@ -362,6 +362,7 @@ export async function generateAIPrediction(batchId = null) {
     : '/predictions/generate';
 
   return request(path, {
+    timeoutMs: 90000,
     method: 'POST',
     body: JSON.stringify({
       ...(selectedBatchId ? { batchId: selectedBatchId } : {}),
