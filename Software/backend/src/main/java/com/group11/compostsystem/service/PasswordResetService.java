@@ -7,6 +7,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -22,7 +23,7 @@ import java.util.Base64;
 public class PasswordResetService {
 
     public static final String FORGOT_PASSWORD_MESSAGE =
-            "Email has been sent.";
+            "If an account exists for that email, a password reset link has been sent.";
     public static final String RESET_SUCCESS_MESSAGE =
             "Password reset successful. You may now log in.";
 
@@ -44,7 +45,9 @@ public class PasswordResetService {
     }
 
     public void requestPasswordReset(ForgotPasswordRequest request, String ipAddress, String userAgent) {
-        String email = request.getEmail() == null ? "" : request.getEmail().trim().toLowerCase();
+        String email = request == null || request.getEmail() == null
+                ? ""
+                : request.getEmail().trim().toLowerCase();
 
         if (email.isBlank()) {
             throw new IllegalArgumentException("Email is required.");
@@ -56,7 +59,12 @@ public class PasswordResetService {
 
         try {
             UserResponse user = jdbcTemplate.queryForObject(
-                    "CALL sp_get_user_by_email(?)",
+                    """
+                    SELECT user_id, full_name AS name, username AS email, role
+                    FROM users
+                    WHERE username = ?
+                    LIMIT 1
+                    """,
                     (rs, rowNum) -> new UserResponse(
                             rs.getLong("user_id"),
                             rs.getString("name"),
@@ -70,26 +78,45 @@ public class PasswordResetService {
             String tokenHash = sha256(rawToken);
             Timestamp expiresAt = buildExpiresAt();
 
-            jdbcTemplate.query(
-                    "CALL sp_create_password_reset_token(?, ?, ?, ?, ?)",
-                    rs -> null,
+            jdbcTemplate.update(
+                    "UPDATE password_reset_tokens SET status = 'EXPIRED' WHERE status = 'ACTIVE' AND expires_at <= CURRENT_TIMESTAMP"
+            );
+            jdbcTemplate.update(
+                    "UPDATE password_reset_tokens SET status = 'EXPIRED' WHERE user_id = ? AND status = 'ACTIVE'",
+                    user.getId()
+            );
+            jdbcTemplate.update(
+                    """
+                    INSERT INTO password_reset_tokens
+                        (user_id, token_hash, expires_at, request_ip, user_agent, status)
+                    VALUES (?, ?, ?, ?, ?, 'ACTIVE')
+                    """,
                     user.getId(),
                     tokenHash,
                     expiresAt,
-                    ipAddress,
-                    userAgent
+                    truncate(ipAddress, 45),
+                    truncate(userAgent, 255)
             );
 
-            emailService.sendPasswordResetEmail(user.getEmail(), buildResetLink(rawToken));
+            try {
+                emailService.sendPasswordResetEmail(user.getEmail(), buildResetLink(rawToken));
+            } catch (RuntimeException e) {
+                jdbcTemplate.update(
+                        "UPDATE password_reset_tokens SET status = 'EXPIRED' WHERE token_hash = ? AND status = 'ACTIVE'",
+                        tokenHash
+                );
+                throw e;
+            }
         } catch (EmptyResultDataAccessException ignored) {
             // Keep the response generic so callers cannot enumerate accounts.
         }
     }
 
+    @Transactional
     public void resetPassword(ResetPasswordRequest request) {
-        String token = request.getToken() == null ? "" : request.getToken().trim();
-        String newPassword = request.getNewPassword();
-        String confirmPassword = request.getConfirmPassword();
+        String token = request == null || request.getToken() == null ? "" : request.getToken().trim();
+        String newPassword = request == null ? null : request.getNewPassword();
+        String confirmPassword = request == null ? null : request.getConfirmPassword();
 
         if (token.isBlank()) {
             throw new IllegalArgumentException("Reset token is required.");
@@ -111,8 +138,18 @@ public class PasswordResetService {
 
         UserResponse user;
         try {
+            jdbcTemplate.update(
+                    "UPDATE password_reset_tokens SET status = 'EXPIRED' WHERE status = 'ACTIVE' AND expires_at <= CURRENT_TIMESTAMP"
+            );
             user = jdbcTemplate.queryForObject(
-                    "CALL sp_validate_password_reset_token(?)",
+                    """
+                    SELECT u.user_id, u.full_name AS name, u.username AS email, u.role
+                    FROM password_reset_tokens prt
+                    JOIN users u ON u.user_id = prt.user_id
+                    WHERE prt.token_hash = ? AND prt.status = 'ACTIVE'
+                      AND prt.used_at IS NULL AND prt.expires_at > CURRENT_TIMESTAMP
+                    LIMIT 1
+                    """,
                     (rs, rowNum) -> new UserResponse(
                             rs.getLong("user_id"),
                             rs.getString("name"),
@@ -128,22 +165,28 @@ public class PasswordResetService {
         String salt = generateSalt();
         String passwordHash = sha256(salt + newPassword);
 
-        Integer passwordRows = jdbcTemplate.queryForObject(
-                "CALL sp_update_user_password(?, ?, ?)",
-                Integer.class,
-                user.getId(),
+        int passwordRows = jdbcTemplate.update(
+                "UPDATE users SET password_hash = ?, password_salt = ? WHERE user_id = ?",
                 passwordHash,
-                salt
+                salt,
+                user.getId()
         );
 
-        if (passwordRows == null || passwordRows == 0) {
+        if (passwordRows != 1) {
             throw new IllegalArgumentException("Unable to reset password for this account.");
         }
 
-        jdbcTemplate.queryForObject(
-                "CALL sp_mark_password_reset_token_used(?)",
-                Integer.class,
+        int tokenRows = jdbcTemplate.update(
+                """
+                UPDATE password_reset_tokens SET status = 'USED', used_at = CURRENT_TIMESTAMP
+                WHERE token_hash = ? AND status = 'ACTIVE' AND used_at IS NULL
+                """,
                 tokenHash
+        );
+        if (tokenRows != 1) throw new IllegalArgumentException("Reset link is invalid, expired, or already used.");
+        jdbcTemplate.update(
+                "UPDATE user_sessions SET status = 'REVOKED', revoked_at = CURRENT_TIMESTAMP WHERE user_id = ? AND status = 'ACTIVE'",
+                user.getId()
         );
     }
 
@@ -165,6 +208,11 @@ public class PasswordResetService {
         byte[] tokenBytes = new byte[32];
         SECURE_RANDOM.nextBytes(tokenBytes);
         return Base64.getUrlEncoder().withoutPadding().encodeToString(tokenBytes);
+    }
+
+    private String truncate(String value, int maxLength) {
+        if (value == null || value.length() <= maxLength) return value;
+        return value.substring(0, maxLength);
     }
 
     private String generateSalt() {

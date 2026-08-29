@@ -47,6 +47,22 @@ function ThresholdSection() {
   };
 
   const handleSave = () => {
+    const moisture = Number(thresholds.moistureMin);
+    const gas = Number(thresholds.gasMax);
+    const sprayCooldown = Number(thresholds.sprayCooldownSeconds);
+    const fanCooldown = Number(thresholds.fanCooldownSeconds);
+    if (![moisture, gas, sprayCooldown, fanCooldown].every(Number.isFinite)) {
+      window.showToast('Enter a number in every threshold field.', 'error');
+      return;
+    }
+    if (moisture < 0 || moisture > 100 || gas < 0 || gas > 100) {
+      window.showToast('Moisture and gas thresholds must be between 0% and 100%.', 'error');
+      return;
+    }
+    if (sprayCooldown < 0 || fanCooldown < 0) {
+      window.showToast('Actuator cooldowns cannot be negative.', 'error');
+      return;
+    }
     setCurrentPassword('');
     setPasswordError('');
     setPasswordPromptOpen(true);
@@ -87,7 +103,7 @@ function ThresholdSection() {
 
   return (
       <div className="info-box settings-full-box">
-      <h4>Threshold Setting</h4>
+      <h4>Threshold Settings</h4>
 
       <div className="threshold-form">
         <div className="threshold-grid">
@@ -98,6 +114,8 @@ function ThresholdSection() {
               value={thresholds.moistureMin}
               onChange={(e) => handleChange('moistureMin', e.target.value)}
               placeholder="50"
+              min="0"
+              max="100"
             />
           </label>
 
@@ -120,6 +138,7 @@ function ThresholdSection() {
               value={thresholds.sprayCooldownSeconds}
               onChange={(e) => handleChange('sprayCooldownSeconds', e.target.value)}
               placeholder="30"
+              min="0"
             />
           </label>
 
@@ -130,6 +149,7 @@ function ThresholdSection() {
               value={thresholds.fanCooldownSeconds}
               onChange={(e) => handleChange('fanCooldownSeconds', e.target.value)}
               placeholder="30"
+              min="0"
             />
           </label>
 

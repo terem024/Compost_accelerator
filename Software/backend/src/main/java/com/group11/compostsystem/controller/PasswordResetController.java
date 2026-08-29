@@ -68,8 +68,9 @@ public class PasswordResetController {
                     new ApiResponse(false, e.getMessage())
             );
         } catch (DataAccessException e) {
-            return ResponseEntity.badRequest().body(
-                    new ApiResponse(false, "Reset link is invalid, expired, or already used.")
+            LOGGER.warn("Password reset could not be completed because of a database error.", e);
+            return ResponseEntity.status(503).body(
+                    new ApiResponse(false, "We couldn't reset your password right now. Please try again shortly.")
             );
         }
     }

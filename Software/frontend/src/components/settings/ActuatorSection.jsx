@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { getActuatorStatus } from '../../services/api.js';
+import { getActuatorStatus, getThresholdSettings } from '../../services/api.js';
 import ActiveCompostBatchSection from './ActiveCompostBatchSection.jsx';
 
 function formatDateTime(value) {
@@ -24,27 +24,55 @@ function getStatusLabel(runtime, active) {
 
 function ActuatorSection() {
   const [actuatorStatus, setActuatorStatus] = useState(null);
+  const [thresholds, setThresholds] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [statusError, setStatusError] = useState('');
 
   useEffect(() => {
-    async function loadData() {
+    let cancelled = false;
+
+    async function loadInitialData() {
       try {
-        const status = await getActuatorStatus();
+        const [status, settings] = await Promise.all([
+          getActuatorStatus(),
+          getThresholdSettings(),
+        ]);
+        if (cancelled) return;
         setActuatorStatus(status);
-      } catch {
-        setActuatorStatus(null);
+        setThresholds(settings);
+        setStatusError('');
+      } catch (error) {
+        if (cancelled) return;
+        setStatusError(error.message || 'Unable to load actuator status.');
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     }
 
-    loadData();
+    async function refreshStatus() {
+      try {
+        const status = await getActuatorStatus();
+        if (cancelled) return;
+        setActuatorStatus(status);
+        setStatusError('');
+      } catch (error) {
+        if (cancelled) return;
+        setStatusError(error.message || 'Unable to refresh actuator status.');
+      }
+    }
+
+    loadInitialData();
+    const interval = window.setInterval(refreshStatus, 5000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+    };
   }, []);
 
   if (loading) {
     return (
       <div className="info-box settings-full-box">
-        <h4>Actuator Controls</h4>
+        <h4>Batch & Actuator Controls</h4>
         <p>Loading latest actuator status...</p>
       </div>
     );
@@ -59,8 +87,14 @@ function ActuatorSection() {
       <ActiveCompostBatchSection />
 
       <div className="info-box settings-full-box">
-        <h4>Actuator Controls</h4>
-        <p>Fan and water spray activations use a fixed 10-second pulse while hardware output is being calibrated.</p>
+        <h4>Actuator Status</h4>
+        {statusError && <p className="form-message error">{statusError}</p>}
+        {thresholds && (
+          <p>
+            Current timing: water spray {thresholds.sprayDurationSeconds}s with a {thresholds.sprayCooldownSeconds}s cooldown;
+            {' '}fan {thresholds.fanDurationSeconds}s with a {thresholds.fanCooldownSeconds}s cooldown.
+          </p>
+        )}
 
         <div className="actuator-status-grid">
           <div className="actuator-card">

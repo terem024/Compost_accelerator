@@ -39,13 +39,13 @@ function Settings({ user, online, onLogout }) {
               className={activeSection === 'controls' ? 'active' : ''}
               onClick={() => setActiveSection('controls')}
             >
-              Actuator Controls
+              Batch & Actuator Controls
             </button>
             <button
               className={activeSection === 'thresholds' ? 'active' : ''}
               onClick={() => setActiveSection('thresholds')}
             >
-              Threshold Setting
+              Threshold Settings
             </button>
           </aside>
 
