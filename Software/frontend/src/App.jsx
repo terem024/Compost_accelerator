@@ -30,6 +30,8 @@ function App() {
 
   useEffect(() => {
     let revealTimer;
+    let blurTimer;
+    const root = document.documentElement;
 
     const revealFocusedAuthField = () => {
       window.clearTimeout(revealTimer);
@@ -41,13 +43,53 @@ function App() {
       }, 180);
     };
 
-    document.addEventListener('focusin', revealFocusedAuthField);
-    window.visualViewport?.addEventListener('resize', revealFocusedAuthField);
+    const updateVisibleViewport = () => {
+      const visibleHeight = window.visualViewport?.height || window.innerHeight;
+      root.style.setProperty('--auth-visible-height', `${Math.round(visibleHeight)}px`);
+    };
+
+    const handleFocusIn = (event) => {
+      if (!(event.target instanceof HTMLElement) || !event.target.matches('.auth-page input')) {
+        return;
+      }
+
+      window.clearTimeout(blurTimer);
+      root.classList.add('auth-keyboard-open');
+      updateVisibleViewport();
+      revealFocusedAuthField();
+    };
+
+    const handleFocusOut = () => {
+      window.clearTimeout(blurTimer);
+      blurTimer = window.setTimeout(() => {
+        const field = document.activeElement;
+        if (!(field instanceof HTMLElement) || !field.matches('.auth-page input')) {
+          root.classList.remove('auth-keyboard-open');
+        }
+      }, 120);
+    };
+
+    const handleViewportResize = () => {
+      updateVisibleViewport();
+      if (document.activeElement?.matches?.('.auth-page input')) {
+        root.classList.add('auth-keyboard-open');
+        revealFocusedAuthField();
+      }
+    };
+
+    updateVisibleViewport();
+    document.addEventListener('focusin', handleFocusIn);
+    document.addEventListener('focusout', handleFocusOut);
+    window.visualViewport?.addEventListener('resize', handleViewportResize);
 
     return () => {
       window.clearTimeout(revealTimer);
-      document.removeEventListener('focusin', revealFocusedAuthField);
-      window.visualViewport?.removeEventListener('resize', revealFocusedAuthField);
+      window.clearTimeout(blurTimer);
+      root.classList.remove('auth-keyboard-open');
+      root.style.removeProperty('--auth-visible-height');
+      document.removeEventListener('focusin', handleFocusIn);
+      document.removeEventListener('focusout', handleFocusOut);
+      window.visualViewport?.removeEventListener('resize', handleViewportResize);
     };
   }, []);
 

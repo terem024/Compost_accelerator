@@ -2407,12 +2407,34 @@ button {
   }
 
   .auth-layout {
-    display: block;
+    display: grid;
     width: 100%;
+    gap: 12px;
   }
 
   .auth-overview {
-    display: none;
+    display: grid;
+    min-height: auto;
+    padding: 24px 18px;
+    border-radius: 8px;
+    gap: 12px;
+  }
+
+  .auth-overview > div {
+    gap: 12px;
+  }
+
+  .auth-main-title {
+    font-size: 1.5rem;
+  }
+
+  .auth-overview h2 {
+    font-size: 1.25rem;
+  }
+
+  .auth-overview p {
+    font-size: 0.9rem;
+    line-height: 1.5;
   }
 
   .auth-card {
@@ -2424,6 +2446,25 @@ button {
 
   .auth-form input {
     scroll-margin-block: 20vh 45vh;
+  }
+
+  .auth-keyboard-open .auth-page {
+    height: var(--auth-visible-height, 100dvh);
+    min-height: var(--auth-visible-height, 100dvh);
+    overflow-y: auto;
+  }
+
+  .auth-keyboard-open .auth-layout {
+    display: block;
+  }
+
+  .auth-keyboard-open .auth-overview {
+    display: none;
+  }
+
+  .auth-keyboard-open .auth-card {
+    padding: 16px 18px;
+    gap: 14px;
   }
 
   .prediction-card,
