@@ -2400,6 +2400,32 @@ button {
 }
 
 @media (max-width: 640px) {
+  .auth-page {
+    min-height: 100dvh;
+    align-items: flex-start;
+    padding: 12px 12px max(24px, env(safe-area-inset-bottom));
+  }
+
+  .auth-layout {
+    display: block;
+    width: 100%;
+  }
+
+  .auth-overview {
+    display: none;
+  }
+
+  .auth-card {
+    width: 100%;
+    padding: 24px 18px;
+    border-radius: 8px;
+    gap: 18px;
+  }
+
+  .auth-form input {
+    scroll-margin-block: 20vh 45vh;
+  }
+
   .prediction-card,
   .prediction-summary,
   .chart-frame {

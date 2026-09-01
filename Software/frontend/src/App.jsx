@@ -29,6 +29,29 @@ function App() {
   const user = authSession?.user || null;
 
   useEffect(() => {
+    let revealTimer;
+
+    const revealFocusedAuthField = () => {
+      window.clearTimeout(revealTimer);
+      revealTimer = window.setTimeout(() => {
+        const field = document.activeElement;
+        if (field instanceof HTMLElement && field.matches('.auth-page input')) {
+          field.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+        }
+      }, 180);
+    };
+
+    document.addEventListener('focusin', revealFocusedAuthField);
+    window.visualViewport?.addEventListener('resize', revealFocusedAuthField);
+
+    return () => {
+      window.clearTimeout(revealTimer);
+      document.removeEventListener('focusin', revealFocusedAuthField);
+      window.visualViewport?.removeEventListener('resize', revealFocusedAuthField);
+    };
+  }, []);
+
+  useEffect(() => {
     let active = true;
     const storedSession = getStoredAuthSession();
     setSessionError(null);
