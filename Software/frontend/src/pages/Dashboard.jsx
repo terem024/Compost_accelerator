@@ -193,35 +193,36 @@ function Dashboard({ user, online }) {
       : 'Waiting for sensor data';
   }, [dataState, sensors.length]);
 
-  const sensorHealth = useMemo(() => {
-    const status = connectionStatus?.connectionStatus;
-    if (status === 'CONNECTED') {
+  const individualSensorHealth = useMemo(() => {
+    const connection = connectionStatus?.connectionStatus;
+
+    return [
+      { id: 'temperature', name: 'Temperature sensor' },
+      { id: 'moisture', name: 'Moisture sensors' },
+      { id: 'gas', name: 'Gas sensor' },
+      { id: 'humidity', name: 'Humidity sensor' },
+    ].map((definition) => {
+      if (connection === 'DISCONNECTED') {
+        return { ...definition, state: 'down', label: 'Not sending data' };
+      }
+      if (connection === 'WAITING') {
+        return { ...definition, state: 'waiting', label: 'Waiting for data' };
+      }
+      if (connection !== 'CONNECTED' || dataState === 'offline') {
+        return { ...definition, state: 'unknown', label: 'Status unavailable' };
+      }
+
+      const sensor = sensors.find((item) => item.id === definition.id);
+      const hasValue = sensor?.value !== null
+        && sensor?.value !== undefined
+        && Number.isFinite(Number(sensor.value));
       return {
-        state: 'working',
-        label: 'Working',
-        description: 'The ESP32 is connected and sending sensor readings normally.',
+        ...definition,
+        state: hasValue ? 'working' : 'down',
+        label: hasValue ? 'Working' : 'Not sending data',
       };
-    }
-    if (status === 'DISCONNECTED') {
-      return {
-        state: 'down',
-        label: 'Not sending data',
-        description: `No new sensor reading has been received for more than ${connectionStatus.timeoutSeconds || 180} seconds.`,
-      };
-    }
-    if (status === 'WAITING') {
-      return {
-        state: 'waiting',
-        label: 'Waiting for data',
-        description: 'The system is running, but it has not received a sensor reading from the ESP32 yet.',
-      };
-    }
-    return {
-      state: 'unknown',
-      label: 'Status unavailable',
-      description: 'The dashboard could not confirm the current ESP32 sensor connection.',
-    };
-  }, [connectionStatus]);
+    });
+  }, [connectionStatus, dataState, sensors]);
 
   const getStatus = (sensor) => {
     if (sensor.id === 'moisture') {
@@ -289,16 +290,21 @@ function Dashboard({ user, online }) {
         </div>
       </div>
 
-      <div className={`sensor-health-banner ${sensorHealth.state}`} role="status" aria-live="polite">
-        <div className="sensor-health-indicator" aria-hidden="true" />
-        <div>
-          <span>Sensor system</span>
-          <strong>{sensorHealth.label}</strong>
-          <p>{sensorHealth.description}</p>
+      <div className="sensor-health-banner" role="status" aria-live="polite">
+        <div className="sensor-health-heading">
+          <strong>Individual sensor data status</strong>
+          <span>Status is based on whether each sensor value is present in the latest reading.</span>
         </div>
-        <div className="sensor-health-last-reading">
-          Last reading
-          <strong>{formatDateTime(connectionStatus?.lastReadingAt || latestReadingAt)}</strong>
+        <div className="sensor-health-grid">
+          {individualSensorHealth.map((sensor) => (
+            <div key={sensor.id} className={`sensor-health-item ${sensor.state}`}>
+              <div className="sensor-health-indicator" aria-hidden="true" />
+              <div>
+                <span>{sensor.name}</span>
+                <strong>{sensor.label}</strong>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
 

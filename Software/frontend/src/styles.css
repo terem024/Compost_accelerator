@@ -1860,13 +1860,33 @@ button {
 
 .sensor-health-banner {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 16px;
+  gap: 14px;
   margin-bottom: 20px;
   padding: 16px 18px;
   border: 1px solid #334155;
   background: #111c30;
+}
+
+.sensor-health-heading {
+  display: grid;
+  gap: 3px;
+}
+
+.sensor-health-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.sensor-health-item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  min-height: 58px;
+  padding: 10px 12px;
+  border: 1px solid #2b3a51;
+  background: #0f192a;
 }
 
 .sensor-health-indicator {
@@ -1876,9 +1896,9 @@ button {
   background: #94a3b8;
 }
 
-.sensor-health-banner.working .sensor-health-indicator { background: #22c55e; }
-.sensor-health-banner.waiting .sensor-health-indicator { background: #f59e0b; }
-.sensor-health-banner.down .sensor-health-indicator { background: #ef4444; }
+.sensor-health-item.working .sensor-health-indicator { background: #22c55e; }
+.sensor-health-item.waiting .sensor-health-indicator { background: #f59e0b; }
+.sensor-health-item.down .sensor-health-indicator { background: #ef4444; }
 
 .sensor-health-banner span,
 .sensor-health-last-reading {
@@ -1892,24 +1912,15 @@ button {
   color: #e2e8f0;
 }
 
-.sensor-health-banner p {
-  margin: 4px 0 0;
-  color: #b8c4d8;
-  font-size: 0.9rem;
-}
-
-.sensor-health-last-reading {
-  text-align: right;
-}
-
-@media (max-width: 720px) {
-  .sensor-health-banner {
-    grid-template-columns: auto minmax(0, 1fr);
+@media (max-width: 900px) {
+  .sensor-health-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+}
 
-  .sensor-health-last-reading {
-    grid-column: 2;
-    text-align: left;
+@media (max-width: 520px) {
+  .sensor-health-grid {
+    grid-template-columns: 1fr;
   }
 }
 
