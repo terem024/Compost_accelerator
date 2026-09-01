@@ -193,6 +193,36 @@ function Dashboard({ user, online }) {
       : 'Waiting for sensor data';
   }, [dataState, sensors.length]);
 
+  const sensorHealth = useMemo(() => {
+    const status = connectionStatus?.connectionStatus;
+    if (status === 'CONNECTED') {
+      return {
+        state: 'working',
+        label: 'Working',
+        description: 'The ESP32 is connected and sending sensor readings normally.',
+      };
+    }
+    if (status === 'DISCONNECTED') {
+      return {
+        state: 'down',
+        label: 'Not sending data',
+        description: `No new sensor reading has been received for more than ${connectionStatus.timeoutSeconds || 180} seconds.`,
+      };
+    }
+    if (status === 'WAITING') {
+      return {
+        state: 'waiting',
+        label: 'Waiting for data',
+        description: 'The system is running, but it has not received a sensor reading from the ESP32 yet.',
+      };
+    }
+    return {
+      state: 'unknown',
+      label: 'Status unavailable',
+      description: 'The dashboard could not confirm the current ESP32 sensor connection.',
+    };
+  }, [connectionStatus]);
+
   const getStatus = (sensor) => {
     if (sensor.id === 'moisture') {
       if (sensor.value < thresholds.moistureMin) return 'Low';
@@ -256,6 +286,19 @@ function Dashboard({ user, online }) {
         </div>
         <div className="timestamp-chip">
           Latest reading: {formatDateTime(latestReadingAt)}
+        </div>
+      </div>
+
+      <div className={`sensor-health-banner ${sensorHealth.state}`} role="status" aria-live="polite">
+        <div className="sensor-health-indicator" aria-hidden="true" />
+        <div>
+          <span>Sensor system</span>
+          <strong>{sensorHealth.label}</strong>
+          <p>{sensorHealth.description}</p>
+        </div>
+        <div className="sensor-health-last-reading">
+          Last reading
+          <strong>{formatDateTime(connectionStatus?.lastReadingAt || latestReadingAt)}</strong>
         </div>
       </div>
 

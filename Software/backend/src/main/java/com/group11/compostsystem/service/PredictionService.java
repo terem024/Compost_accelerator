@@ -7,6 +7,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -51,6 +52,8 @@ public class PredictionService {
     private static final ZoneId PREDICTION_ZONE = ZoneId.of("Asia/Manila");
     private static final String DAILY_LIMIT_MESSAGE =
             "AI prediction can only be generated once per day for this compost batch. Today's saved prediction is shown below.";
+    private static final String INACTIVE_BATCH_MESSAGE =
+            "AI prediction is only available for ongoing compost batches.";
 
     public PredictionService(JdbcTemplate jdbcTemplate, ObjectMapper objectMapper, GeminiPredictionClient geminiClient) {
         this.jdbcTemplate = jdbcTemplate;
@@ -69,6 +72,10 @@ public class PredictionService {
             Map<String, Object> batch = getBatch(selectedBatchId);
             if (batch == null) {
                 return AIPredictionResponse.failed("Compost batch not found.");
+            }
+
+            if (!isActiveBatch(batch)) {
+                return AIPredictionResponse.failed(inactiveBatchMessage(batch));
             }
 
             AIPredictionResponse todaysPrediction = getTodaysPrediction(
@@ -102,7 +109,7 @@ public class PredictionService {
 
             String inputSnapshot = objectMapper.writeValueAsString(Map.of(
                     "analysisDate", LocalDate.now(PREDICTION_ZONE).toString(),
-                    "batch", batch,
+                    "batch", batchForPrediction(batch),
                     "latestReading", latestReading,
                     "readingSummary", readingSummary,
                     "actuatorSummary", actuatorSummary,
@@ -180,6 +187,31 @@ public class PredictionService {
         );
 
         return result.isEmpty() ? null : result.get(0);
+    }
+
+    private boolean isActiveBatch(Map<String, Object> batch) {
+        return "ACTIVE".equalsIgnoreCase(batchStatus(batch));
+    }
+
+    private String batchStatus(Map<String, Object> batch) {
+        Object status = batch == null ? null : batch.get("status");
+        return status == null ? "" : status.toString().trim();
+    }
+
+    private String inactiveBatchMessage(Map<String, Object> batch) {
+        return switch (batchStatus(batch).toUpperCase()) {
+            case "COMPLETED" -> INACTIVE_BATCH_MESSAGE + " The selected batch is completed.";
+            case "CANCELLED" -> INACTIVE_BATCH_MESSAGE + " The selected batch is terminated.";
+            default -> INACTIVE_BATCH_MESSAGE;
+        };
+    }
+
+    private Map<String, Object> batchForPrediction(Map<String, Object> batch) {
+        Map<String, Object> predictionBatch = new LinkedHashMap<>(batch);
+        String storedWeight = String.valueOf(batch.getOrDefault("fill_level", "HALF"));
+        predictionBatch.remove("fill_level");
+        predictionBatch.put("batch_weight_kg", "FULL".equalsIgnoreCase(storedWeight) ? 10 : 5);
+        return predictionBatch;
     }
 
     private Map<String, Object> getLatestReading(Integer batchId) {
@@ -355,12 +387,31 @@ public class PredictionService {
 
     public AIPredictionAvailabilityResponse getPredictionAvailability(Integer batchId) {
         Integer selectedBatchId = resolveBatchId(batchId);
-        if (selectedBatchId == null || getBatch(selectedBatchId) == null) {
+        Map<String, Object> batch = selectedBatchId == null ? null : getBatch(selectedBatchId);
+        if (batch == null) {
             return new AIPredictionAvailabilityResponse(
                     false,
                     "Compost batch not found.",
                     null,
                     null
+            );
+        }
+
+        if (!isActiveBatch(batch)) {
+            String message = inactiveBatchMessage(batch);
+            AIPredictionResponse existingPrediction = getTodaysPrediction(
+                    selectedBatchId,
+                    message,
+                    false
+            );
+            if (existingPrediction != null) {
+                existingPrediction.setNextPredictionAt(null);
+            }
+            return new AIPredictionAvailabilityResponse(
+                    false,
+                    message,
+                    null,
+                    existingPrediction
             );
         }
 

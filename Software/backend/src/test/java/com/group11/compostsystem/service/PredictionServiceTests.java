@@ -26,7 +26,7 @@ class PredictionServiceTests {
     @BeforeEach
     void batchExists() {
         when(jdbc.queryForList("CALL sp_get_compost_batch_by_id(?)", 3))
-                .thenReturn(List.of(Map.of("batch_id", 3)));
+                .thenReturn(List.of(Map.of("batch_id", 3, "status", "ACTIVE")));
     }
 
     @Test
@@ -72,5 +72,39 @@ class PredictionServiceTests {
         var prompt = org.mockito.ArgumentCaptor.forClass(String.class);
         verify(gemini).generate(prompt.capture());
         assertTrue(prompt.getValue().contains("\"batch_id\":3"));
+        assertTrue(prompt.getValue().contains("\"batch_weight_kg\":5"));
+    }
+
+    @Test
+    void completedBatchCannotGeneratePrediction() {
+        when(jdbc.queryForList("CALL sp_get_compost_batch_by_id(?)", 3))
+                .thenReturn(List.of(Map.of("batch_id", 3, "status", "COMPLETED")));
+
+        AIPredictionResponse result = service.generatePrediction(3);
+
+        assertFalse(result.isSuccess());
+        assertEquals(
+                "AI prediction is only available for ongoing compost batches. The selected batch is completed.",
+                result.getMessage()
+        );
+        verifyNoInteractions(gemini);
+        verify(jdbc, never()).queryForList("CALL sp_get_latest_sensor_reading_for_batch(?)", 3);
+    }
+
+    @Test
+    void terminatedBatchAvailabilityExplainsRestriction() {
+        when(jdbc.queryForList("CALL sp_get_compost_batch_by_id(?)", 3))
+                .thenReturn(List.of(Map.of("batch_id", 3, "status", "CANCELLED")));
+
+        var availability = service.getPredictionAvailability(3);
+
+        assertFalse(availability.isCanGenerate());
+        assertEquals(
+                "AI prediction is only available for ongoing compost batches. The selected batch is terminated.",
+                availability.getMessage()
+        );
+        assertNull(availability.getNextPredictionAt());
+        assertNull(availability.getPrediction());
+        verifyNoInteractions(gemini);
     }
 }

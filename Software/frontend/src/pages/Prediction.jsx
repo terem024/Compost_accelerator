@@ -21,6 +21,19 @@ function formatStatus(value) {
   return value.charAt(0).toUpperCase() + value.slice(1).toLowerCase();
 }
 
+function formatBatchStatus(value) {
+  switch (String(value || '').toUpperCase()) {
+    case 'ACTIVE':
+      return 'Ongoing';
+    case 'COMPLETED':
+      return 'Completed';
+    case 'CANCELLED':
+      return 'Terminated';
+    default:
+      return 'Unknown';
+  }
+}
+
 function formatValue(value) {
   return value === null || value === undefined ? '--' : value.toFixed(1);
 }
@@ -101,6 +114,13 @@ function Prediction({ user, online }) {
     loadSensorHistory();
   }, []);
 
+  const selectedBatch = useMemo(
+    () => batches.find((batch) => String(batch.batchId) === String(batchId)) || null,
+    [batchId, batches]
+  );
+  const selectedBatchIsOngoing = String(selectedBatch?.status || '').toUpperCase() === 'ACTIVE';
+  const predictionRestricted = Boolean(selectedBatch && !selectedBatchIsOngoing);
+
   useEffect(() => {
     if (!batchId) {
       setPredictionAvailability(null);
@@ -128,7 +148,7 @@ function Prediction({ user, online }) {
     return () => {
       cancelled = true;
     };
-  }, [batchId]);
+  }, [batchId, selectedBatch, selectedBatchIsOngoing]);
 
   useEffect(() => {
     const nextPredictionAt = predictionAvailability?.nextPredictionAt;
@@ -151,10 +171,6 @@ function Prediction({ user, online }) {
   }, [predictionAvailability?.nextPredictionAt]);
 
   const visibleSensors = SENSOR_SERIES.filter((series) => activeSeries[series.id]);
-  const selectedBatch = useMemo(
-    () => batches.find((batch) => String(batch.batchId) === String(batchId)) || null,
-    [batchId, batches]
-  );
   const selectedBatchHistory = useMemo(
     () => sensorHistory
       .filter((reading) => String(reading.batchId) === String(batchId))
@@ -245,6 +261,12 @@ function Prediction({ user, online }) {
   }, [selectedBatchHistory, visibleSensors]);
 
   async function handleGeneratePrediction() {
+    if (!selectedBatchIsOngoing) {
+      setPredictionError('AI prediction is only available for ongoing compost batches.');
+      setPredictionModalOpen(false);
+      return;
+    }
+
     if (dailyLimitActive && predictionAvailability?.prediction) {
       setPrediction({
         ...predictionAvailability.prediction,
@@ -295,7 +317,7 @@ function Prediction({ user, online }) {
               <h2>Generate AI Prediction</h2>
               <p>
                 {selectedBatch
-                  ? `Selected batch: ${selectedBatch.batchCode} - ${selectedBatch.batchName}`
+                  ? `Selected batch: ${selectedBatch.batchCode} - ${selectedBatch.batchName} (${formatBatchStatus(selectedBatch.status)})`
                   : activeBatch
                     ? `Active batch: ${activeBatch.batchCode} - ${activeBatch.batchName}`
                     : 'Create a compost batch in Settings before generating a prediction.'}
@@ -312,7 +334,7 @@ function Prediction({ user, online }) {
               >
                 {batches.map((batch) => (
                   <option key={batch.batchId} value={batch.batchId}>
-                    {batch.batchCode} - {batch.batchName}
+                    {batch.batchCode} - {batch.batchName} ({formatBatchStatus(batch.status)})
                   </option>
                 ))}
               </select>
@@ -322,12 +344,14 @@ function Prediction({ user, online }) {
               type="button"
               className="primary-button prediction-generate-button"
               onClick={handleGeneratePrediction}
-              disabled={loading || availabilityLoading || !batchId}
+              disabled={loading || availabilityLoading || !batchId || !selectedBatchIsOngoing}
             >
               {loading && <span className="button-spinner" aria-hidden="true" />}
               <span>
                 {loading
                   ? 'Generating AI Prediction...'
+                  : predictionRestricted
+                    ? 'Prediction Unavailable'
                   : dailyLimitActive
                     ? "View Today's Prediction"
                     : 'Generate Prediction'}
@@ -335,11 +359,23 @@ function Prediction({ user, online }) {
             </button>
           </div>
 
-          <div className={`prediction-limit-status ${dailyLimitActive ? 'limit-active' : ''}`}>
+          <div className={`prediction-limit-status ${dailyLimitActive || predictionRestricted ? 'limit-active' : ''}`}>
             <div>
-              <strong>{dailyLimitActive ? 'Daily prediction used' : 'Daily prediction available'}</strong>
+              <strong>
+                {predictionRestricted
+                  ? `Batch ${formatBatchStatus(selectedBatch?.status)}`
+                  : !selectedBatch
+                    ? 'No batch selected'
+                  : dailyLimitActive
+                    ? 'Daily prediction used'
+                    : 'Daily prediction available'}
+              </strong>
               <span>
-                {dailyLimitActive
+                {predictionRestricted
+                  ? ' AI prediction is only available for ongoing compost batches.'
+                  : !selectedBatch
+                    ? ' Create or activate a compost batch before generating a prediction.'
+                  : dailyLimitActive
                   ? ' This batch can receive one new AI prediction each day.'
                   : ' One prediction can be generated for the selected batch today.'}
               </span>

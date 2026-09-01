@@ -16,7 +16,21 @@ import java.util.Set;
 @Service
 public class CompostBatchService {
 
-    private static final Set<String> VALID_FILL_LEVELS = Set.of("ONE_THIRD", "HALF", "FULL");
+    private static final Set<String> VALID_FILL_LEVELS = Set.of("HALF", "FULL");
+    private static final String BATCH_SELECT = """
+            SELECT cb.batch_id, cb.batch_code, cb.batch_name, cb.primary_material,
+                   cb.material_description, cb.fill_level, cb.start_date,
+                   (
+                       SELECT ap.estimated_ready_date
+                       FROM ai_predictions ap
+                       WHERE ap.batch_id = cb.batch_id
+                       ORDER BY ap.created_at DESC, ap.prediction_id DESC
+                       LIMIT 1
+                   ) AS latest_predicted_ready_date,
+                   cb.actual_ready_date, cb.status, cb.bin_location, cb.notes,
+                   cb.created_by, cb.created_at, cb.updated_at
+            FROM compost_batches cb
+            """;
 
     private final JdbcTemplate jdbcTemplate;
 
@@ -44,7 +58,11 @@ public class CompostBatchService {
     public CompostBatchResponse getActiveBatch() {
         try {
             return jdbcTemplate.queryForObject(
-                    "CALL sp_get_active_compost_batch()",
+                    BATCH_SELECT + """
+                    WHERE cb.status = 'ACTIVE'
+                    ORDER BY cb.start_date DESC, cb.batch_id DESC
+                    LIMIT 1
+                    """,
                     (rs, rowNum) -> mapBatch(rs)
             );
         } catch (EmptyResultDataAccessException e) {
@@ -54,14 +72,17 @@ public class CompostBatchService {
 
     public List<CompostBatchResponse> getBatches() {
         return jdbcTemplate.query(
-                "CALL sp_get_compost_batches()",
+                BATCH_SELECT + """
+                ORDER BY FIELD(cb.status, 'ACTIVE', 'READY', 'READY_FOR_CHECKING', 'COMPLETED', 'CANCELLED'),
+                         cb.start_date DESC, cb.batch_id DESC
+                """,
                 (rs, rowNum) -> mapBatch(rs)
         );
     }
 
     public CompostBatchResponse getBatchById(Integer batchId) {
         return jdbcTemplate.queryForObject(
-                "CALL sp_get_compost_batch_by_id(?)",
+                BATCH_SELECT + " WHERE cb.batch_id = ? LIMIT 1",
                 (rs, rowNum) -> mapBatch(rs),
                 batchId
         );
@@ -213,7 +234,7 @@ public class CompostBatchService {
                 : value.trim().toUpperCase();
 
         if (!VALID_FILL_LEVELS.contains(fillLevel)) {
-            throw new IllegalArgumentException("Fill level must be ONE_THIRD, HALF, or FULL.");
+            throw new IllegalArgumentException("Compost batch weight must be 5 kg or 10 kg.");
         }
 
         return fillLevel;

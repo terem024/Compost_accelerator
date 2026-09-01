@@ -1858,6 +1858,61 @@ button {
   box-sizing: border-box;
 }
 
+.sensor-health-banner {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 20px;
+  padding: 16px 18px;
+  border: 1px solid #334155;
+  background: #111c30;
+}
+
+.sensor-health-indicator {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #94a3b8;
+}
+
+.sensor-health-banner.working .sensor-health-indicator { background: #22c55e; }
+.sensor-health-banner.waiting .sensor-health-indicator { background: #f59e0b; }
+.sensor-health-banner.down .sensor-health-indicator { background: #ef4444; }
+
+.sensor-health-banner span,
+.sensor-health-last-reading {
+  color: #94a3b8;
+  font-size: 0.78rem;
+}
+
+.sensor-health-banner strong {
+  display: block;
+  margin-top: 2px;
+  color: #e2e8f0;
+}
+
+.sensor-health-banner p {
+  margin: 4px 0 0;
+  color: #b8c4d8;
+  font-size: 0.9rem;
+}
+
+.sensor-health-last-reading {
+  text-align: right;
+}
+
+@media (max-width: 720px) {
+  .sensor-health-banner {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .sensor-health-last-reading {
+    grid-column: 2;
+    text-align: left;
+  }
+}
+
 .session-recovery h1 { font-size: 24px; margin: 0 0 16px; }
 .session-recovery p { font-weight: 400; line-height: 1.6; margin: 0 0 20px; }
 

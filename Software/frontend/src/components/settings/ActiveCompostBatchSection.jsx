@@ -20,7 +20,6 @@ function emptyForm() {
     materialDescription: '',
     fillLevel: 'HALF',
     startDate: todayString(),
-    binLocation: '',
     notes: '',
   };
 }
@@ -32,9 +31,8 @@ function formFromBatch(batch) {
     batchName: batch.batchName || '',
     primaryMaterial: batch.primaryMaterial || '',
     materialDescription: batch.materialDescription || '',
-    fillLevel: batch.fillLevel || 'HALF',
+    fillLevel: batch.fillLevel === 'FULL' ? 'FULL' : 'HALF',
     startDate: batch.startDate || todayString(),
-    binLocation: batch.binLocation || '',
     notes: batch.notes || '',
   };
 }
@@ -45,9 +43,9 @@ function formatDate(value) {
 }
 
 function formatFillLevel(value) {
-  if (value === 'FULL') return 'Full';
-  if (value === 'ONE_THIRD') return 'Low (one-third)';
-  return 'Half full';
+  if (value === 'FULL') return '10 kg';
+  if (value === 'HALF') return '5 kg';
+  return 'Legacy batch weight';
 }
 
 function ActiveCompostBatchSection() {
@@ -295,16 +293,12 @@ function ActiveCompostBatchSection() {
             <strong>{formatDate(activeBatch.startDate)}</strong>
           </div>
           <div>
-            <span>Fill level</span>
+            <span>Batch weight</span>
             <strong>{formatFillLevel(activeBatch.fillLevel)}</strong>
           </div>
           <div>
             <span>AI estimated ready</span>
-            <strong>{formatDate(activeBatch.latestPredictedReadyDate)}</strong>
-          </div>
-          <div>
-            <span>Bin location</span>
-            <strong>{activeBatch.binLocation || 'Not set'}</strong>
+            <strong>{activeBatch.latestPredictedReadyDate || 'Not available'}</strong>
           </div>
         </div>
       )}
@@ -348,26 +342,15 @@ function ActiveCompostBatchSection() {
             </label>
 
             <label>
-              Compost fill level
+              Compost batch weight
               <select
                 value={form.fillLevel}
                 disabled={saving}
                 onChange={(event) => updateField('fillLevel', event.target.value)}
               >
-                <option value="ONE_THIRD">Low (one-third)</option>
-                <option value="HALF">Half full</option>
-                <option value="FULL">Full</option>
+                <option value="HALF">5 kg</option>
+                <option value="FULL">10 kg</option>
               </select>
-            </label>
-
-            <label>
-              Bin location
-              <input
-                type="text"
-                value={form.binLocation}
-                disabled={saving}
-                onChange={(event) => updateField('binLocation', event.target.value)}
-              />
             </label>
 
             <label>
