@@ -93,8 +93,11 @@ public class EmailService {
 
     public void sendActuatorActivationEmail(String actuatorName, String activationStatus, String timestamp,
                                            String sensorReadings) {
-        if (notificationEmail == null || notificationEmail.isBlank()) {
-            LOGGER.warn("Actuator notification skipped because NOTIFICATION_EMAIL is not configured.");
+        String recipient = notificationEmail == null || notificationEmail.isBlank()
+                ? fromEmail
+                : notificationEmail;
+        if (recipient == null || recipient.isBlank()) {
+            LOGGER.warn("Actuator notification skipped because neither NOTIFICATION_EMAIL nor GMAIL_USERNAME is configured.");
             return;
         }
 
@@ -114,7 +117,7 @@ public class EmailService {
         try {
             notificationExecutor.execute(() -> {
                 try {
-                    sendEmail(notificationEmail, "IoT Compost Accelerator - Actuator Activated", body);
+                    sendEmail(recipient, "IoT Compost Accelerator - Actuator Activated", body);
                     LOGGER.info("Actuator notification sent successfully for {}.", actuatorName);
                 } catch (RuntimeException e) {
                     LOGGER.warn("Actuator notification could not be sent ({}): {}",

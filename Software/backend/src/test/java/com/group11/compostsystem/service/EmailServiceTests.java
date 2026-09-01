@@ -77,6 +77,22 @@ class EmailServiceTests {
     }
 
     @Test
+    void actuatorNotificationFallsBackToTheConfiguredGmailSender() {
+        GmailApiEmailSender gmail = mock(GmailApiEmailSender.class);
+        EmailService service = new EmailService(mock(JavaMailSender.class), gmail, Runnable::run);
+        ReflectionTestUtils.setField(service, "provider", "gmail-api");
+        ReflectionTestUtils.setField(service, "fromEmail", "compostaccelerator@gmail.com");
+
+        service.sendActuatorActivationEmail("WATER_SPRAY", "ON", "today", "Moisture: 17%");
+
+        verify(gmail).send(
+                eq("compostaccelerator@gmail.com"),
+                contains("Actuator Activated"),
+                contains("Moisture: 17%")
+        );
+    }
+
+    @Test
     void localSmtpRemainsAvailable() {
         JavaMailSender smtp = mock(JavaMailSender.class);
         GmailApiEmailSender gmail = mock(GmailApiEmailSender.class);
