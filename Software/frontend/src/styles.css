@@ -74,6 +74,7 @@ button {
 
 .dashboard-main {
   margin-left: 280px;
+  min-width: 0;
   padding: 24px 28px;
 }
 
@@ -88,8 +89,16 @@ button {
   margin-bottom: 24px;
 }
 
-.topbar > div:first-child {
+.topbar-heading {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 14px;
+}
+
+.topbar-copy {
   display: grid;
+  min-width: 0;
   gap: 6px;
 }
 
@@ -106,8 +115,29 @@ button {
 
 .topbar-right {
   display: flex;
+  min-width: 0;
   align-items: center;
   gap: 12px;
+}
+
+.mobile-nav-toggle,
+.mobile-nav {
+  display: none;
+}
+
+.status-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.status-dot {
+  width: 10px;
+  height: 10px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 0 4px rgba(148, 163, 184, 0.1);
 }
 
 .status-chip,
@@ -994,6 +1024,71 @@ button {
     display: none;
   }
 
+  .dashboard-main {
+    margin-left: 0;
+    padding: 16px;
+  }
+
+  .topbar {
+    padding: 18px;
+    border-radius: 8px;
+    margin-bottom: 12px;
+  }
+
+  .mobile-nav-toggle {
+    width: 42px;
+    height: 42px;
+    flex: 0 0 42px;
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    padding: 0;
+    border: 1px solid rgba(148, 163, 184, 0.2);
+    border-radius: 8px;
+    background: rgba(15, 23, 42, 0.88);
+    cursor: pointer;
+  }
+
+  .mobile-nav-toggle span {
+    width: 18px;
+    height: 2px;
+    border-radius: 2px;
+    background: #e2e8f0;
+  }
+
+  .mobile-nav-toggle:focus-visible {
+    outline: 2px solid #60a5fa;
+    outline-offset: 2px;
+  }
+
+  .mobile-nav.open {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    margin: 0 0 16px;
+    padding: 10px;
+    border: 1px solid rgba(148, 163, 184, 0.14);
+    border-radius: 8px;
+    background: rgba(30, 41, 59, 0.96);
+  }
+
+  .mobile-nav a {
+    min-width: 0;
+    padding: 12px;
+    border-radius: 6px;
+    color: #cbd5e1;
+    text-align: center;
+  }
+
+  .mobile-nav a.active,
+  .mobile-nav a:hover {
+    background: rgba(59, 130, 246, 0.18);
+    color: #eff6ff;
+    text-decoration: none;
+  }
+
   .cards-grid,
   .device-cards,
   .info-panels {
@@ -1003,8 +1098,46 @@ button {
 
 @media (max-width: 640px) {
   .topbar {
+    padding: 14px;
+    gap: 14px;
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .topbar-right {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .profile-chip {
+    min-width: 0;
+    max-width: 65%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .dashboard-content {
+    gap: 18px;
+  }
+
+  .section-header {
+    align-items: stretch;
+  }
+
+  .section-header > div:first-child {
+    width: 100%;
+  }
+
+  .timestamp-chip {
+    width: 100%;
+    border-radius: 8px;
+    line-height: 1.45;
+  }
+
+  .sensor-health-banner {
+    margin-bottom: 0;
+    padding: 14px;
   }
 }
 
@@ -1919,6 +2052,11 @@ button {
 }
 
 @media (max-width: 520px) {
+  .sensor-health-banner {
+    margin-bottom: 0;
+    padding: 14px;
+  }
+
   .sensor-health-grid {
     grid-template-columns: 1fr;
   }
