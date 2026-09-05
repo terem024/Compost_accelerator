@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import Layout from '../components/Layout.jsx';
 import MeSection from '../components/settings/MeSection.jsx';
 import ThresholdSection from '../components/settings/ThresholdSection.jsx';
@@ -7,7 +7,16 @@ import ActuatorSection from '../components/settings/ActuatorSection.jsx';
 
 function Settings({ user, online, onLogout }) {
   const navigate = useNavigate();
-  const [activeSection, setActiveSection] = useState('me');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const requestedSection = searchParams.get('section');
+  const [activeSection, setActiveSection] = useState(
+    ['me', 'controls', 'thresholds'].includes(requestedSection) ? requestedSection : 'me'
+  );
+
+  const selectSection = (section) => {
+    setActiveSection(section);
+    setSearchParams(section === 'me' ? {} : { section }, { replace: true });
+  };
 
   return (
     <Layout
@@ -31,19 +40,19 @@ function Settings({ user, online, onLogout }) {
           <aside className="settings-inner-sidebar">
             <button
               className={activeSection === 'me' ? 'active' : ''}
-              onClick={() => setActiveSection('me')}
+              onClick={() => selectSection('me')}
             >
               Me
             </button>
             <button
               className={activeSection === 'controls' ? 'active' : ''}
-              onClick={() => setActiveSection('controls')}
+              onClick={() => selectSection('controls')}
             >
               Batch & Actuator Controls
             </button>
             <button
               className={activeSection === 'thresholds' ? 'active' : ''}
-              onClick={() => setActiveSection('thresholds')}
+              onClick={() => selectSection('thresholds')}
             >
               Threshold Settings
             </button>

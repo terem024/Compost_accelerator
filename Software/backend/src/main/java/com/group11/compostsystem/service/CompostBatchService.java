@@ -17,6 +17,9 @@ import java.util.Set;
 public class CompostBatchService {
 
     private static final Set<String> VALID_FILL_LEVELS = Set.of("HALF", "FULL");
+    private static final Set<String> VALID_STATUSES = Set.of(
+            "ACTIVE", "READY_FOR_CHECKING", "READY", "COMPLETED", "CANCELLED"
+    );
     private static final String BATCH_SELECT = """
             SELECT cb.batch_id, cb.batch_code, cb.batch_name, cb.primary_material,
                    cb.material_description, cb.fill_level, cb.start_date,
@@ -130,11 +133,16 @@ public class CompostBatchService {
             throw new IllegalArgumentException("Status is required.");
         }
 
+        String status = request.getStatus().trim().toUpperCase();
+        if (!VALID_STATUSES.contains(status)) {
+            throw new IllegalArgumentException("Invalid compost batch status.");
+        }
+
         return jdbcTemplate.queryForObject(
                 "CALL sp_update_compost_batch_status(?, ?, ?)",
                 (rs, rowNum) -> mapBatch(rs),
                 batchId,
-                request.getStatus().trim().toUpperCase(),
+                status,
                 parseOptionalDate(request.getActualReadyDate())
         );
     }

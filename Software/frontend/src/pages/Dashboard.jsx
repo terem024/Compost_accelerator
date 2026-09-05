@@ -6,6 +6,7 @@ import {
   getLatestSensorReading,
   getSensorConnectionStatus,
   getThresholdSettings,
+  getActiveCompostBatch,
 } from '../services/api.js';
 
 const GAS_HIGH_THRESHOLD = 60;
@@ -83,6 +84,7 @@ function Dashboard({ user, online }) {
   const [latestReadingAt, setLatestReadingAt] = useState(null);
   const [dataState, setDataState] = useState('loading');
   const [connectionStatus, setConnectionStatus] = useState(null);
+  const [noActiveBatch, setNoActiveBatch] = useState(false);
 
   useEffect(() => {
     localStorage.setItem(DASHBOARD_SENSORS_KEY, JSON.stringify(sensors));
@@ -117,10 +119,11 @@ function Dashboard({ user, online }) {
       dashboardRequestInFlight = true;
 
       try {
-        const [readingResult, actuatorResult, connectionResult] = await Promise.allSettled([
+        const [readingResult, actuatorResult, connectionResult, batchResult] = await Promise.allSettled([
           getLatestSensorReading(),
           getActuatorStatus(),
           getSensorConnectionStatus(),
+          getActiveCompostBatch(),
         ]);
 
         if (!active) return;
@@ -133,6 +136,10 @@ function Dashboard({ user, online }) {
           setConnectionStatus(connectionResult.value);
         }
 
+        setNoActiveBatch(
+          batchResult.status === 'rejected' && batchResult.reason?.status === 404
+        );
+
         if (readingResult.status === 'rejected') {
           console.error('Failed to poll the latest sensor reading:', readingResult.reason);
           setDataState('offline');
@@ -140,7 +147,7 @@ function Dashboard({ user, online }) {
         }
 
         const latestReading = readingResult.value;
-        if (latestReading?.temperatureC != null) {
+        if (latestReading?.createdAt) {
           setSensors(buildSensorCards(latestReading));
           setLatestReadingAt(latestReading.createdAt);
           setDataState('live');
@@ -178,7 +185,19 @@ function Dashboard({ user, online }) {
   }, []);
 
   const systemStatus = useMemo(() => {
+    if (connectionStatus?.connectionStatus === 'DISCONNECTED') {
+      return sensors.length > 0
+        ? 'Live readings are paused. Showing the last saved sensor reading'
+        : 'Live readings are paused. Waiting for the ESP32 to reconnect';
+    }
+
     if (dataState === 'live') {
+      const hasMissingSensor = sensors.some(
+        (sensor) => sensor.value === null || sensor.value === undefined
+      );
+      if (hasMissingSensor) {
+        return 'Partial sensor readings are active. Check the sensor status below';
+      }
       return 'Live sensor readings are active';
     }
 
@@ -191,7 +210,7 @@ function Dashboard({ user, online }) {
     return sensors.length > 0
       ? 'Showing the last saved sensor reading'
       : 'Waiting for sensor data';
-  }, [dataState, sensors.length]);
+  }, [connectionStatus, dataState, sensors]);
 
   const individualSensorHealth = useMemo(() => {
     const connection = connectionStatus?.connectionStatus;
@@ -218,13 +237,17 @@ function Dashboard({ user, online }) {
         && Number.isFinite(Number(sensor.value));
       return {
         ...definition,
-        state: hasValue ? 'working' : 'down',
-        label: hasValue ? 'Working' : 'Not sending data',
+        state: hasValue ? 'working' : 'error',
+        label: hasValue ? 'Working' : 'Sensor error',
       };
     });
   }, [connectionStatus, dataState, sensors]);
 
   const getStatus = (sensor) => {
+    if (sensor.value === null || sensor.value === undefined || !Number.isFinite(Number(sensor.value))) {
+      return 'Unavailable';
+    }
+
     if (sensor.id === 'moisture') {
       if (sensor.value < thresholds.moistureMin) return 'Low';
       if (sensor.value > 70) return 'High';
@@ -279,7 +302,12 @@ function Dashboard({ user, online }) {
       subtitle="Sensor Monitoring and Live System Status"
       online={online}
     >
-      <SensorConnectionAlert status={connectionStatus} />
+      <div className="dashboard-alerts">
+        {noActiveBatch && (
+          <SensorConnectionAlert status={connectionStatus} noActiveBatch />
+        )}
+        <SensorConnectionAlert status={connectionStatus} />
+      </div>
       <div className="section-header">
         <div>
           <h2>Dashboard</h2>
@@ -321,14 +349,18 @@ function Dashboard({ user, online }) {
               </div>
               <h3>{sensor.name}</h3>
               <div className="card-value">
-                {sensor.value !== null ? Number(sensor.value).toFixed(1) : '--'}
+                {sensor.value !== null && sensor.value !== undefined
+                  ? Number(sensor.value).toFixed(1)
+                  : '--'}
                 <span>{sensor.unit}</span>
               </div>
               <div className={`card-status ${status.toLowerCase()}`}>
                 {status}
               </div>
               <div className="card-description">{sensor.description}</div>
-              {sensor.value === null && <p className="placeholder-text">Awaiting sensor data</p>}
+              {(sensor.value === null || sensor.value === undefined) && (
+                <p className="placeholder-text">This sensor did not provide a reading</p>
+              )}
             </div>
           );
         })}

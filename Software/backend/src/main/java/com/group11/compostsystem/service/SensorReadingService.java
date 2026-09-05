@@ -47,10 +47,6 @@ public class SensorReadingService {
 
     public SensorReadingResponse saveSensorReading(SensorReadingRequest request) {
         BigDecimal moistureLevel = request.getEffectiveMoistureLevel();
-        if (moistureLevel == null) {
-            throw new IllegalArgumentException("moisture data is required");
-        }
-
         ThresholdSettingsResponse threshold = thresholdService.getThresholdSettings();
         Integer batchId = resolveBatchId(request.getBatchId());
         validateSensorValues(moistureLevel, request.getGasLevel(), request.getTemperatureC(), request.getHumidityLevel());
@@ -72,10 +68,10 @@ public class SensorReadingService {
                     Statement.RETURN_GENERATED_KEYS
             );
             ps.setObject(1, batchId);
-            ps.setBigDecimal(2, moistureLevel);
-            ps.setBigDecimal(3, request.getGasLevel());
-            ps.setBigDecimal(4, request.getTemperatureC());
-            ps.setBigDecimal(5, request.getHumidityLevel());
+            ps.setObject(2, moistureLevel);
+            ps.setObject(3, request.getGasLevel());
+            ps.setObject(4, request.getTemperatureC());
+            ps.setObject(5, request.getHumidityLevel());
             ps.setString(6, moistureStatus);
             ps.setString(7, gasStatus);
             ps.setString(8, temperatureStatus);
@@ -130,25 +126,31 @@ public class SensorReadingService {
                     Integer.class
             );
         } catch (EmptyResultDataAccessException ex) {
-            throw new IllegalArgumentException("No active compost batch found. Create or activate a compost batch before saving sensor readings.");
+            throw new NoActiveBatchException(
+                    "No active compost batch found. Create or activate a compost batch before saving sensor readings."
+            );
         }
     }
 
-    private void validateSensorValues(BigDecimal moistureLevel,
-                                      BigDecimal gasLevel,
-                                      BigDecimal temperatureC,
-                                      BigDecimal humidityLevel) {
-        if (moistureLevel == null || gasLevel == null || temperatureC == null || humidityLevel == null) {
-            throw new IllegalArgumentException("All sensor values are required.");
+    void validateSensorValues(BigDecimal moistureLevel,
+                              BigDecimal gasLevel,
+                              BigDecimal temperatureC,
+                              BigDecimal humidityLevel) {
+        if (moistureLevel == null && gasLevel == null && temperatureC == null && humidityLevel == null) {
+            throw new IllegalArgumentException("At least one sensor value is required.");
         }
 
-        if (gasLevel.compareTo(BigDecimal.ZERO) < 0
-                || gasLevel.compareTo(new BigDecimal("100.00")) > 0) {
+        if (gasLevel != null && (gasLevel.compareTo(BigDecimal.ZERO) < 0
+                || gasLevel.compareTo(new BigDecimal("100.00")) > 0)) {
             throw new IllegalArgumentException("Gas level must be a percentage between 0 and 100.");
         }
     }
 
-    private String statusFor(BigDecimal value, BigDecimal lowThreshold, BigDecimal highThreshold) {
+    String statusFor(BigDecimal value, BigDecimal lowThreshold, BigDecimal highThreshold) {
+        if (value == null) {
+            return null;
+        }
+
         if (value.compareTo(lowThreshold) < 0) {
             return "LOW";
         }

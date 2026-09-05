@@ -782,6 +782,11 @@ button {
   font-style: italic;
 }
 
+.card-status.unavailable {
+  background: rgba(239, 68, 68, 0.14);
+  color: #fecaca;
+}
+
 .status-optimal {
   color: #a7f3d0;
   font-weight: 600;
@@ -1778,62 +1783,66 @@ button {
   font-weight: 700;
 }
 
-.sensor-connection-alert-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 1400;
+.dashboard-alerts {
   display: grid;
-  place-items: center;
-  padding: 20px;
-  background: rgba(4, 9, 20, 0.76);
-  backdrop-filter: blur(4px);
+  gap: 10px;
 }
 
-.sensor-connection-alert {
-  width: min(460px, 100%);
-  padding: 28px;
-  border: 1px solid #f97316;
-  border-radius: 8px;
-  background: #101827;
-  color: #e5e7eb;
-  text-align: center;
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.45);
+.dashboard-alerts:empty {
+  display: none;
 }
 
-.sensor-connection-alert-icon {
+.system-alert {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  border: 1px solid #ef4444;
+  border-radius: 6px;
+  background: rgba(127, 29, 29, 0.22);
+  color: #fee2e2;
+}
+
+.system-alert-icon {
   display: grid;
   place-items: center;
-  width: 48px;
-  height: 48px;
-  margin: 0 auto 16px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
-  background: #f97316;
-  color: #111827;
-  font-size: 26px;
+  background: #ef4444;
+  color: #ffffff;
+  font-size: 18px;
   font-weight: 800;
 }
 
-.sensor-connection-alert h2 {
-  margin: 0 0 12px;
-  font-size: 22px;
+.system-alert-copy {
+  display: grid;
+  gap: 3px;
 }
 
-.sensor-connection-alert p {
-  margin: 0;
-  line-height: 1.6;
+.system-alert-copy strong {
+  font-size: 0.95rem;
 }
 
-.sensor-connection-alert-time {
-  margin: 18px 0 10px;
-  padding: 10px;
-  border: 1px solid #334155;
-  background: #0b1220;
-  font-weight: 600;
+.system-alert-copy span {
+  color: #fecaca;
+  font-size: 0.84rem;
 }
 
-.sensor-connection-alert span {
-  color: #94a3b8;
-  font-size: 14px;
+.system-alert-action {
+  padding: 9px 12px;
+  border: 1px solid rgba(254, 202, 202, 0.5);
+  border-radius: 6px;
+  color: #ffffff;
+  font-size: 0.84rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.system-alert-action:hover {
+  background: rgba(254, 226, 226, 0.12);
+  text-decoration: none;
 }
 
 .notification-modal-backdrop {
@@ -2032,6 +2041,19 @@ button {
 .sensor-health-item.working .sensor-health-indicator { background: #22c55e; }
 .sensor-health-item.waiting .sensor-health-indicator { background: #f59e0b; }
 .sensor-health-item.down .sensor-health-indicator { background: #ef4444; }
+.sensor-health-item.error .sensor-health-indicator { background: #ef4444; }
+
+@media (max-width: 640px) {
+  .system-alert {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .system-alert-action {
+    grid-column: 1 / -1;
+    width: 100%;
+    text-align: center;
+  }
+}
 
 .sensor-health-banner span,
 .sensor-health-last-reading {

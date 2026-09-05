@@ -4,12 +4,14 @@ import com.group11.compostsystem.dto.SensorReadingRequest;
 import com.group11.compostsystem.dto.SensorReadingResponse;
 import com.group11.compostsystem.service.SensorReadingService;
 import com.group11.compostsystem.service.SensorSseService;
+import com.group11.compostsystem.service.NoActiveBatchException;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/sensor-readings")
@@ -25,9 +27,15 @@ public class SensorReadingsController {
     }
 
     @PostMapping
-    public ResponseEntity<SensorReadingResponse> saveSensorReading(@RequestBody SensorReadingRequest request) {
-        SensorReadingResponse response = sensorReadingService.saveSensorReading(request);
-        return ResponseEntity.ok(response);
+    public ResponseEntity<?> saveSensorReading(@RequestBody SensorReadingRequest request) {
+        try {
+            SensorReadingResponse response = sensorReadingService.saveSensorReading(request);
+            return ResponseEntity.ok(response);
+        } catch (NoActiveBatchException exception) {
+            return ResponseEntity.status(409).body(error(exception.getMessage()));
+        } catch (IllegalArgumentException exception) {
+            return ResponseEntity.badRequest().body(error(exception.getMessage()));
+        }
     }
 
     @GetMapping("/latest")
@@ -49,5 +57,12 @@ public class SensorReadingsController {
     @GetMapping("/stream")
     public SseEmitter streamSensorReadings() {
         return sensorSseService.subscribe();
+    }
+
+    private Map<String, Object> error(String message) {
+        return Map.of(
+                "success", false,
+                "message", message
+        );
     }
 }

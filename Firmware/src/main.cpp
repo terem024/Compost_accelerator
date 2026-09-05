@@ -54,6 +54,8 @@ constexpr float MOISTURE_PERCENT_MAX = 100.0f;
 // Relative MQ135 reading for monitoring. This percentage is not a PPM value.
 constexpr float GAS_PERCENT_MIN = 0.0f;
 constexpr float GAS_PERCENT_MAX = 100.0f;
+constexpr int ADC_VALID_MIN = 5;
+constexpr int ADC_VALID_MAX = 4090;
 
 DHT dht(DHT_PIN, DHT_TYPE);
 
@@ -66,6 +68,11 @@ struct SensorPayload {
   float gasPercent;
   float temperatureC;
   float humidityLevel;
+  bool moisture1Valid;
+  bool moisture2Valid;
+  bool gasValid;
+  bool temperatureValid;
+  bool humidityValid;
 };
 
 static QueueHandle_t payloadQueue = nullptr;
@@ -197,6 +204,10 @@ static float calculateGasPercent(int adcValue) {
   return mapFloat(static_cast<float>(adcValue), 0.0f, 4095.0f, GAS_PERCENT_MIN, GAS_PERCENT_MAX);
 }
 
+static bool isAdcReadingUsable(float value) {
+  return value > ADC_VALID_MIN && value < ADC_VALID_MAX;
+}
+
 static bool readDHT22(float &outTemperature, float &outHumidity) {
   float humidity = dht.readHumidity();
   float temperature = dht.readTemperature();
@@ -219,32 +230,38 @@ static bool readSensors(SensorPayload &payload) {
 
   payload.gasPercent = calculateGasPercent(static_cast<int>(payload.gasRaw));
 
-  if (!readDHT22(payload.temperatureC, payload.humidityLevel)) {
-    Serial.println("[ERROR] DHT22 read failed or checksum invalid.");
-    return false;
-  }
+  payload.moisture1Valid = isAdcReadingUsable(payload.moisture1Raw);
+  payload.moisture2Valid = isAdcReadingUsable(payload.moisture2Raw);
+  payload.gasValid = isAdcReadingUsable(payload.gasRaw);
+  const bool dhtValid = readDHT22(payload.temperatureC, payload.humidityLevel);
+  payload.temperatureValid = dhtValid;
+  payload.humidityValid = dhtValid;
 
-  if (payload.moisture1Raw < 0 || payload.moisture1Raw > 4095 ||
-      payload.moisture2Raw < 0 || payload.moisture2Raw > 4095 ||
-      payload.gasRaw < 0 || payload.gasRaw > 4095) {
-    Serial.println("[ERROR] Invalid ADC reading detected.");
-    return false;
+  if (!dhtValid) {
+    Serial.println("[ERROR] DHT22 read failed or checksum invalid; other sensors will still be sent.");
   }
+  if (!payload.moisture1Valid) Serial.println("[ERROR] Moisture sensor 1 is at an invalid ADC rail.");
+  if (!payload.moisture2Valid) Serial.println("[ERROR] Moisture sensor 2 is at an invalid ADC rail.");
+  if (!payload.gasValid) Serial.println("[ERROR] MQ135 gas sensor is at an invalid ADC rail.");
 
   Serial.printf(
     "[SENSOR] Soil1=%d, Soil2=%d, Moisture1=%.1f%%, Moisture2=%.1f%%, "
-    "MQ135=%d, Gas=%.1f%%, Temp=%.1f°C, Humidity=%.1f%%\n",
+    "MQ135=%d, Gas=%.1f%%\n",
     static_cast<int>(payload.moisture1Raw),
     static_cast<int>(payload.moisture2Raw),
     payload.moisturePercent1,
     payload.moisturePercent2,
     static_cast<int>(payload.gasRaw),
-    payload.gasPercent,
-    payload.temperatureC,
-    payload.humidityLevel
+    payload.gasPercent
   );
+  if (dhtValid) {
+    Serial.printf("[SENSOR] Temp=%.1f°C, Humidity=%.1f%%\n",
+                  payload.temperatureC, payload.humidityLevel);
+  } else {
+    Serial.println("[SENSOR] Temp=N/A, Humidity=N/A");
+  }
 
-  return true;
+  return payload.moisture1Valid || payload.moisture2Valid || payload.gasValid || dhtValid;
 }
 
 static bool ensureWiFiConnected() {
@@ -297,12 +314,11 @@ static bool sendReadingToBackend(const SensorPayload &payload) {
   }
 
   StaticJsonDocument<256> doc;
-  doc["moisturePercent1"] = payload.moisturePercent1;
-  doc["moisturePercent2"] = payload.moisturePercent2;
-  doc["moistureLevel"] = (payload.moisturePercent1 + payload.moisturePercent2) / 2.0f;
-  doc["gasLevel"] = payload.gasPercent;
-  doc["temperatureC"] = payload.temperatureC;
-  doc["humidityLevel"] = payload.humidityLevel;
+  if (payload.moisture1Valid) doc["moisturePercent1"] = payload.moisturePercent1;
+  if (payload.moisture2Valid) doc["moisturePercent2"] = payload.moisturePercent2;
+  if (payload.gasValid) doc["gasLevel"] = payload.gasPercent;
+  if (payload.temperatureValid) doc["temperatureC"] = payload.temperatureC;
+  if (payload.humidityValid) doc["humidityLevel"] = payload.humidityLevel;
 
   String body;
   serializeJson(doc, body);
@@ -356,6 +372,10 @@ static bool sendReadingToBackend(const SensorPayload &payload) {
     }
 
     http.end();
+    if (httpCode == 409) {
+      Serial.println("[HTTP] No active compost batch; open Batch & Actuator Controls in the app.");
+      break;
+    }
     if (attempt < HTTP_RETRY_COUNT) {
       Serial.printf("[HTTP] Retrying in %lu ms\n", HTTP_RETRY_DELAY_MS);
       vTaskDelay(pdMS_TO_TICKS(HTTP_RETRY_DELAY_MS));

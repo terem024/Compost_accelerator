@@ -70,6 +70,9 @@ function ActiveCompostBatchSection() {
   const isCreating = mode === 'create';
   const isEditing = mode === 'edit';
   const formEditable = isCreating || isEditing;
+  const selectedBatchIsFinal = selectedBatch?.status === 'COMPLETED'
+    || selectedBatch?.status === 'CANCELLED';
+  const canUpdateSelectedStatus = Boolean(selectedBatch?.batchId) && !selectedBatchIsFinal;
 
   async function loadBatches() {
     setLoading(true);
@@ -403,13 +406,13 @@ function ActiveCompostBatchSection() {
           <button type="button" className="primary-button" onClick={handleStartCreate} disabled={saving}>
             Create Batch
           </button>
-          <button type="button" className="secondary-button" onClick={() => handleStatus('READY')} disabled={saving}>
+          <button type="button" className="secondary-button" onClick={() => handleStatus('READY')} disabled={saving || !canUpdateSelectedStatus}>
             Mark READY
           </button>
-          <button type="button" className="secondary-button" onClick={() => handleStatus('COMPLETED')} disabled={saving}>
+          <button type="button" className="secondary-button" onClick={() => handleStatus('COMPLETED')} disabled={saving || !canUpdateSelectedStatus}>
             Mark COMPLETED
           </button>
-          <button type="button" className="secondary-button" onClick={() => handleStatus('CANCELLED')} disabled={saving}>
+          <button type="button" className="secondary-button" onClick={() => handleStatus('CANCELLED')} disabled={saving || !canUpdateSelectedStatus}>
             Mark CANCELLED
           </button>
         </div>

@@ -1,4 +1,21 @@
-function SensorConnectionAlert({ status }) {
+import { Link } from 'react-router-dom';
+
+function SensorConnectionAlert({ status, noActiveBatch = false }) {
+  if (noActiveBatch) {
+    return (
+      <div className="system-alert batch-alert" role="alert" aria-live="assertive">
+        <div className="system-alert-icon" aria-hidden="true">!</div>
+        <div className="system-alert-copy">
+          <strong>No active compost batch</strong>
+          <span>Sensor readings cannot be saved until a batch is created or activated.</span>
+        </div>
+        <Link className="system-alert-action" to="/settings?section=controls">
+          Open batch controls
+        </Link>
+      </div>
+    );
+  }
+
   if (status?.connectionStatus !== 'DISCONNECTED') return null;
 
   const lastReading = status.lastReadingAt
@@ -6,18 +23,11 @@ function SensorConnectionAlert({ status }) {
     : 'No sensor reading received';
 
   return (
-    <div className="sensor-connection-alert-backdrop" role="alertdialog" aria-modal="true">
-      <div className="sensor-connection-alert" aria-live="assertive">
-        <div className="sensor-connection-alert-icon" aria-hidden="true">!</div>
-        <h2>ESP32 Sensor Connection Lost</h2>
-        <p>
-          No new sensor reading has been received for more than three minutes.
-          Sensor status is currently N/A.
-        </p>
-        <div className="sensor-connection-alert-time">
-          Last reading: {lastReading}
-        </div>
-        <span>This notice will clear automatically when a new reading is received.</span>
+    <div className="system-alert connection-alert" role="alert" aria-live="assertive">
+      <div className="system-alert-icon" aria-hidden="true">!</div>
+      <div className="system-alert-copy">
+        <strong>ESP32 connection lost</strong>
+        <span>No reading received for more than three minutes. Last reading: {lastReading}</span>
       </div>
     </div>
   );
