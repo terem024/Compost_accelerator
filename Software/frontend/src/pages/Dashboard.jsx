@@ -217,7 +217,7 @@ function Dashboard({ user, online }) {
 
     return [
       { id: 'temperature', name: 'Temperature sensor' },
-      { id: 'moisture', name: 'Moisture sensors' },
+      { id: 'moisture', name: 'Moisture reading' },
       { id: 'gas', name: 'Gas sensor' },
       { id: 'humidity', name: 'Humidity sensor' },
     ].map((definition) => {
@@ -372,7 +372,7 @@ function Dashboard({ user, online }) {
           <div className={`actuator-badge ${actuatorStatus?.fanActive ? 'active' : 'inactive'}`}>
             {getActuatorLabel(fanRuntime, actuatorStatus?.fanActive)}
           </div>
-          <p>Triggered only when gas level is above {thresholds.gasMax}%.</p>
+          <p>Triggered when gas is above {thresholds.gasMax}% or humidity is above 70%.</p>
           <span>Last pulse: {formatDateTime(fanRuntime?.lastActivatedAt)}</span>
         </div>
 
