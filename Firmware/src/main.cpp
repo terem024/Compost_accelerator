@@ -15,6 +15,14 @@
 
 #define ENABLE_RELAY_CONTROL true
 
+#ifndef ENABLE_MOISTURE_SENSOR_1
+#define ENABLE_MOISTURE_SENSOR_1 1
+#endif
+
+#ifndef ENABLE_MOISTURE_SENSOR_2
+#define ENABLE_MOISTURE_SENSOR_2 1
+#endif
+
 #if ENABLE_RELAY_CONTROL
 #define RELAY_IN1_PIN          26
 #define RELAY_IN2_PIN          27
@@ -29,7 +37,7 @@
 #define DHT_PIN        33
 #define DHT_TYPE       DHT22
 
-#define SOIL_MOISTURE_1_PIN 34
+#define SOIL_MOISTURE_1_PIN 36
 #define SOIL_MOISTURE_2_PIN 35
 #define MQ135_PIN           32
 
@@ -220,18 +228,40 @@ static bool readDHT22(float &outTemperature, float &outHumidity) {
 }
 
 static bool readSensors(SensorPayload &payload) {
+#if ENABLE_MOISTURE_SENSOR_1
   payload.moisture1Raw = analogRead(SOIL_MOISTURE_1_PIN);
+#else
+  payload.moisture1Raw = NAN;
+#endif
+#if ENABLE_MOISTURE_SENSOR_2
   payload.moisture2Raw = analogRead(SOIL_MOISTURE_2_PIN);
+#else
+  payload.moisture2Raw = NAN;
+#endif
   payload.gasRaw       = analogRead(MQ135_PIN);
 
+#if ENABLE_MOISTURE_SENSOR_1
   payload.moisturePercent1 = calculateMoisturePercent(static_cast<int>(payload.moisture1Raw));
+#else
+  payload.moisturePercent1 = NAN;
+#endif
+#if ENABLE_MOISTURE_SENSOR_2
   payload.moisturePercent2 = calculateMoisturePercent(static_cast<int>(payload.moisture2Raw));
-
-
+#else
+  payload.moisturePercent2 = NAN;
+#endif
   payload.gasPercent = calculateGasPercent(static_cast<int>(payload.gasRaw));
 
+#if ENABLE_MOISTURE_SENSOR_1
   payload.moisture1Valid = isAdcReadingUsable(payload.moisture1Raw);
+#else
+  payload.moisture1Valid = false;
+#endif
+#if ENABLE_MOISTURE_SENSOR_2
   payload.moisture2Valid = isAdcReadingUsable(payload.moisture2Raw);
+#else
+  payload.moisture2Valid = false;
+#endif
   payload.gasValid = isAdcReadingUsable(payload.gasRaw);
   const bool dhtValid = readDHT22(payload.temperatureC, payload.humidityLevel);
   payload.temperatureValid = dhtValid;
@@ -240,10 +270,15 @@ static bool readSensors(SensorPayload &payload) {
   if (!dhtValid) {
     Serial.println("[ERROR] DHT22 read failed or checksum invalid; other sensors will still be sent.");
   }
+#if ENABLE_MOISTURE_SENSOR_1
   if (!payload.moisture1Valid) Serial.println("[ERROR] Moisture sensor 1 is at an invalid ADC rail.");
+#endif
+#if ENABLE_MOISTURE_SENSOR_2
   if (!payload.moisture2Valid) Serial.println("[ERROR] Moisture sensor 2 is at an invalid ADC rail.");
+#endif
   if (!payload.gasValid) Serial.println("[ERROR] MQ135 gas sensor is at an invalid ADC rail.");
 
+#if ENABLE_MOISTURE_SENSOR_1 && ENABLE_MOISTURE_SENSOR_2
   Serial.printf(
     "[SENSOR] Soil1=%d, Soil2=%d, Moisture1=%.1f%%, Moisture2=%.1f%%, "
     "MQ135=%d, Gas=%.1f%%\n",
@@ -254,6 +289,26 @@ static bool readSensors(SensorPayload &payload) {
     static_cast<int>(payload.gasRaw),
     payload.gasPercent
   );
+#elif ENABLE_MOISTURE_SENSOR_1
+  Serial.printf(
+    "[SENSOR] Soil1=%d, Moisture1=%.1f%%, Soil2=DISABLED, MQ135=%d, Gas=%.1f%%\n",
+    static_cast<int>(payload.moisture1Raw),
+    payload.moisturePercent1,
+    static_cast<int>(payload.gasRaw),
+    payload.gasPercent
+  );
+#elif ENABLE_MOISTURE_SENSOR_2
+  Serial.printf(
+    "[SENSOR] Soil1=DISABLED, Soil2=%d, Moisture2=%.1f%%, MQ135=%d, Gas=%.1f%%\n",
+    static_cast<int>(payload.moisture2Raw),
+    payload.moisturePercent2,
+    static_cast<int>(payload.gasRaw),
+    payload.gasPercent
+  );
+#else
+  Serial.printf("[SENSOR] Soil1=DISABLED, Soil2=DISABLED, MQ135=%d, Gas=%.1f%%\n",
+                static_cast<int>(payload.gasRaw), payload.gasPercent);
+#endif
   if (dhtValid) {
     Serial.printf("[SENSOR] Temp=%.1f°C, Humidity=%.1f%%\n",
                   payload.temperatureC, payload.humidityLevel);
@@ -436,14 +491,33 @@ void setup() {
 #endif
 
   analogReadResolution(12);
+#if ENABLE_MOISTURE_SENSOR_1
   analogSetPinAttenuation(SOIL_MOISTURE_1_PIN, ADC_11db);
+#endif
+#if ENABLE_MOISTURE_SENSOR_2
   analogSetPinAttenuation(SOIL_MOISTURE_2_PIN, ADC_11db);
+#endif
   analogSetPinAttenuation(MQ135_PIN, ADC_11db);
+#if ENABLE_MOISTURE_SENSOR_1 && ENABLE_MOISTURE_SENSOR_2
   Serial.printf("[SETUP] Sensor mapping: Soil1=GPIO%d, Soil2=GPIO%d, MQ135=GPIO%d, DHT22=GPIO%d\n",
                 SOIL_MOISTURE_1_PIN,
                 SOIL_MOISTURE_2_PIN,
                 MQ135_PIN,
                 DHT_PIN);
+#elif ENABLE_MOISTURE_SENSOR_1
+  Serial.printf("[SETUP] Sensor mapping: Soil1=GPIO%d, Soil2=DISABLED, MQ135=GPIO%d, DHT22=GPIO%d\n",
+                SOIL_MOISTURE_1_PIN,
+                MQ135_PIN,
+                DHT_PIN);
+#elif ENABLE_MOISTURE_SENSOR_2
+  Serial.printf("[SETUP] Sensor mapping: Soil1=DISABLED, Soil2=GPIO%d, MQ135=GPIO%d, DHT22=GPIO%d\n",
+                SOIL_MOISTURE_2_PIN,
+                MQ135_PIN,
+                DHT_PIN);
+#else
+  Serial.printf("[SETUP] Sensor mapping: Soil1=DISABLED, Soil2=DISABLED, MQ135=GPIO%d, DHT22=GPIO%d\n",
+                MQ135_PIN, DHT_PIN);
+#endif
 
   dht.begin();
 
