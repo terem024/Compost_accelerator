@@ -21,6 +21,7 @@ public class ActuatorLogService {
     private static final String FAN = "FAN";
     private static final String WATER_SPRAY = "WATER_SPRAY";
     private static final String STATUS_ON = "ON";
+    private static final BigDecimal HUMIDITY_HIGH_THRESHOLD = new BigDecimal("70.00");
     private final JdbcTemplate jdbcTemplate;
     private final EmailService emailService;
 
@@ -54,6 +55,7 @@ public class ActuatorLogService {
             }
         }
 
+        boolean fanTriggered = false;
         if (reading.getGasLevel() != null
                 && reading.getGasLevel().compareTo(thresholds.getGasMax()) > 0) {
             ActuatorActionResponse action = pulseActuator(
@@ -62,6 +64,25 @@ public class ActuatorLogService {
                     "GAS",
                     reading.getGasLevel(),
                     thresholds.getGasMax(),
+                    valueOrDefault(thresholds.getFanDurationSeconds(), 5),
+                    valueOrDefault(thresholds.getFanCooldownSeconds(), 30)
+            );
+
+            if (action != null) {
+                actions.add(action);
+                fanTriggered = true;
+            }
+        }
+
+        if (!fanTriggered
+                && reading.getHumidityLevel() != null
+                && reading.getHumidityLevel().compareTo(HUMIDITY_HIGH_THRESHOLD) > 0) {
+            ActuatorActionResponse action = pulseActuator(
+                    reading,
+                    FAN,
+                    "HUMIDITY",
+                    reading.getHumidityLevel(),
+                    HUMIDITY_HIGH_THRESHOLD,
                     valueOrDefault(thresholds.getFanDurationSeconds(), 5),
                     valueOrDefault(thresholds.getFanCooldownSeconds(), 30)
             );

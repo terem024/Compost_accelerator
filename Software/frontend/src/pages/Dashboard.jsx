@@ -61,7 +61,7 @@ const buildSensorCards = (reading) => [
     name: 'Gas Level',
     value: reading.gasLevel,
     unit: '%',
-    description: 'Fan is triggered only above the gas maximum',
+    description: 'Fan is triggered by high gas or high humidity',
   },
   {
     id: 'humidity',
