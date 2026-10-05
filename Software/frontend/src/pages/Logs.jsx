@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import Layout from '../components/Layout.jsx';
 import {
   getActuatorLogs,
+  getDailyReports,
+  generateYesterdayDailyReport,
   getSensorConnectionLogs,
   getSensorReadings,
 } from '../services/api.js';
@@ -82,7 +84,10 @@ function Logs({ user, online, setOnline }) {
   const [sensorReadings, setSensorReadings] = useState([]);
   const [actuatorLogs, setActuatorLogs] = useState([]);
   const [connectionLogs, setConnectionLogs] = useState([]);
+  const [dailyReports, setDailyReports] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [reportGenerating, setReportGenerating] = useState(false);
+  const [reportError, setReportError] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [searchTerm, setSearchTerm] = useState('');
   const [sensorPage, setSensorPage] = useState(1);
@@ -93,19 +98,24 @@ function Logs({ user, online, setOnline }) {
   useEffect(() => {
     async function loadLogs() {
       try {
-        const [readings, logs, connections] = await Promise.all([
+        const [readings, logs, connections, reports] = await Promise.all([
           getSensorReadings(),
           getActuatorLogs(),
           getSensorConnectionLogs(),
+          getDailyReports(),
         ]);
 
         setSensorReadings(Array.isArray(readings) ? readings : []);
         setActuatorLogs(Array.isArray(logs) ? logs : []);
         setConnectionLogs(Array.isArray(connections) ? connections : []);
+        setDailyReports(Array.isArray(reports) ? reports : []);
+        setReportError('');
       } catch {
         setSensorReadings([]);
         setActuatorLogs([]);
         setConnectionLogs([]);
+        setDailyReports([]);
+        setReportError('Unable to load daily reports right now.');
       } finally {
         setLoading(false);
       }
@@ -207,6 +217,64 @@ function Logs({ user, online, setOnline }) {
     return new Date(value).toLocaleString();
   };
 
+  const formatDate = (value) => {
+    if (!value) return '--';
+    return new Date(`${value}T00:00:00`).toLocaleDateString();
+  };
+
+  const latestReport = dailyReports[0];
+
+  const reportMetrics = latestReport ? [
+    {
+      label: 'Moisture',
+      average: latestReport.averageMoisture,
+      minimum: latestReport.minimumMoisture,
+      maximum: latestReport.maximumMoisture,
+      unit: '%',
+    },
+    {
+      label: 'Gas',
+      average: latestReport.averageGas,
+      minimum: latestReport.minimumGas,
+      maximum: latestReport.maximumGas,
+      unit: '%',
+    },
+    {
+      label: 'Temperature',
+      average: latestReport.averageTemperature,
+      minimum: latestReport.minimumTemperature,
+      maximum: latestReport.maximumTemperature,
+      unit: '°C',
+    },
+    {
+      label: 'Humidity',
+      average: latestReport.averageHumidity,
+      minimum: latestReport.minimumHumidity,
+      maximum: latestReport.maximumHumidity,
+      unit: '%',
+    },
+  ] : [];
+
+  const handleGenerateYesterdayReport = async () => {
+    setReportGenerating(true);
+    setReportError('');
+    try {
+      const report = await generateYesterdayDailyReport();
+      setDailyReports((currentReports) => {
+        const withoutDuplicate = currentReports.filter(
+          (item) => item.reportDate !== report.reportDate
+        );
+        return [report, ...withoutDuplicate].sort(
+          (left, right) => new Date(right.reportDate) - new Date(left.reportDate)
+        );
+      });
+    } catch (error) {
+      setReportError(error.message || 'Unable to generate the daily report.');
+    } finally {
+      setReportGenerating(false);
+    }
+  };
+
   return (
     <Layout
       user={user}
@@ -216,6 +284,69 @@ function Logs({ user, online, setOnline }) {
       setOnline={setOnline}
     >
       <div className="logs-panel">
+        <section className="daily-report-section">
+          <div className="daily-report-header">
+            <div>
+              <h3>Daily Sensor Report</h3>
+              <p>
+                Generated automatically every day at 6:00 AM for the previous day.
+              </p>
+            </div>
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={handleGenerateYesterdayReport}
+              disabled={reportGenerating}
+            >
+              {reportGenerating ? 'Generating...' : 'Generate Yesterday'}
+            </button>
+          </div>
+
+          {reportError && <p className="form-message error">{reportError}</p>}
+
+          {loading ? (
+            <div className="daily-report-empty">Loading daily reports...</div>
+          ) : !latestReport ? (
+            <div className="daily-report-empty">
+              No daily reports have been generated yet.
+            </div>
+          ) : (
+            <div className="daily-report-card">
+              <div className="daily-report-summary">
+                <div>
+                  <span>Report date</span>
+                  <strong>{formatDate(latestReport.reportDate)}</strong>
+                </div>
+                <div>
+                  <span>Readings received</span>
+                  <strong>{latestReport.readingCount}</strong>
+                </div>
+                <div>
+                  <span>Generated</span>
+                  <strong>{formatDateTime(latestReport.generatedAt)}</strong>
+                </div>
+              </div>
+
+              <div className="daily-report-grid">
+                {reportMetrics.map((metric) => (
+                  <div className="daily-report-metric" key={metric.label}>
+                    <span>{metric.label}</span>
+                    <strong>{formatNumber(metric.average)} {metric.unit}</strong>
+                    <small>
+                      Min {formatNumber(metric.minimum)} {metric.unit} · Max {formatNumber(metric.maximum)} {metric.unit}
+                    </small>
+                  </div>
+                ))}
+              </div>
+
+              <div className="daily-report-issues">
+                <span>Sensor availability</span>
+                <p>{latestReport.sensorAvailabilityIssues || 'No sensor availability issues detected.'}</p>
+              </div>
+            </div>
+          )}
+        </section>
+
         <div className="logs-toolbar">
           <div className="logs-filter">
             <label htmlFor="statusFilter">Sensor status</label>

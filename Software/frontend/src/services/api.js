@@ -266,6 +266,19 @@ export async function getSensorConnectionLogs() {
   });
 }
 
+export async function getDailyReports() {
+  return request('/daily-reports', {
+    method: 'GET',
+    cache: 'no-store',
+  });
+}
+
+export async function generateYesterdayDailyReport() {
+  return request('/daily-reports/generate-yesterday', {
+    method: 'POST',
+  });
+}
+
 // Subscribe to server-sent events for live sensor readings.
 // onMessage is a callback that receives the parsed sensor reading object.
 export function subscribeSensorStream(onMessage, onError) {

@@ -1,0 +1,21 @@
+CREATE TABLE IF NOT EXISTS `daily_sensor_reports` (
+  `report_id` BIGINT NOT NULL AUTO_INCREMENT,
+  `report_date` DATE NOT NULL,
+  `reading_count` BIGINT NOT NULL DEFAULT 0,
+  `average_moisture` DECIMAL(10,2) DEFAULT NULL,
+  `minimum_moisture` DECIMAL(10,2) DEFAULT NULL,
+  `maximum_moisture` DECIMAL(10,2) DEFAULT NULL,
+  `average_gas` DECIMAL(10,2) DEFAULT NULL,
+  `minimum_gas` DECIMAL(10,2) DEFAULT NULL,
+  `maximum_gas` DECIMAL(10,2) DEFAULT NULL,
+  `average_temperature` DECIMAL(10,2) DEFAULT NULL,
+  `minimum_temperature` DECIMAL(10,2) DEFAULT NULL,
+  `maximum_temperature` DECIMAL(10,2) DEFAULT NULL,
+  `average_humidity` DECIMAL(10,2) DEFAULT NULL,
+  `minimum_humidity` DECIMAL(10,2) DEFAULT NULL,
+  `maximum_humidity` DECIMAL(10,2) DEFAULT NULL,
+  `sensor_availability_issues` TEXT DEFAULT NULL,
+  `generated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`report_id`),
+  UNIQUE KEY `uq_daily_sensor_reports_report_date` (`report_date`)
+);

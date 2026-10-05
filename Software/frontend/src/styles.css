@@ -1150,6 +1150,91 @@ button {
   overflow-x: auto;
 }
 
+.daily-report-section {
+  margin-bottom: 24px;
+  padding: 22px;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.94);
+}
+
+.daily-report-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.daily-report-header h3 {
+  margin: 0 0 6px;
+}
+
+.daily-report-header p,
+.daily-report-empty,
+.daily-report-issues p,
+.daily-report-metric small,
+.daily-report-summary span,
+.daily-report-issues span {
+  color: #94a3b8;
+}
+
+.daily-report-card {
+  display: grid;
+  gap: 16px;
+}
+
+.daily-report-summary,
+.daily-report-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.daily-report-summary > div,
+.daily-report-metric,
+.daily-report-issues {
+  padding: 16px;
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  border-radius: 8px;
+  background: rgba(30, 41, 59, 0.72);
+}
+
+.daily-report-summary span,
+.daily-report-metric span,
+.daily-report-issues span {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 0.82rem;
+}
+
+.daily-report-summary strong,
+.daily-report-metric strong {
+  color: #e2e8f0;
+}
+
+.daily-report-metric strong {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 1.35rem;
+}
+
+.daily-report-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.daily-report-issues p {
+  margin: 0;
+  line-height: 1.55;
+}
+
+.daily-report-empty {
+  padding: 20px;
+  text-align: center;
+  border: 1px dashed rgba(148, 163, 184, 0.18);
+  border-radius: 8px;
+}
+
 .logs-section-title {
   margin: 24px 0 12px;
   font-size: 1.1rem;
@@ -2422,6 +2507,16 @@ button {
 }
 
 @media (max-width: 640px) {
+  .daily-report-header,
+  .daily-report-summary,
+  .daily-report-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .daily-report-header {
+    display: grid;
+  }
+
   .auth-page {
     min-height: 100dvh;
     align-items: flex-start;

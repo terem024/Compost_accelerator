@@ -47,19 +47,12 @@ class ActuatorControlLogicTests {
     }
 
     @Test
-    void highHumidityRequestsFiveSecondFanWithThirtySecondCooldown() {
+    void highHumidityDoesNotRequestFanWithoutHighGas() {
         ActuatorLogService service = serviceWithAvailableActuators();
 
         List<ActuatorActionResponse> actions = service.applyAutomaticControl(reading("70", "20", "100"), thresholds());
 
-        assertEquals(1, actions.size());
-        ActuatorActionResponse action = actions.get(0);
-        assertEquals("FAN", action.getActuatorType());
-        assertEquals("HUMIDITY", action.getTriggerSource());
-        assertEquals(new BigDecimal("100"), action.getTriggerValue());
-        assertEquals(new BigDecimal("70.00"), action.getThresholdValue());
-        assertEquals(5, action.getDurationSeconds());
-        assertEquals(30_000L, action.getCooldownUntil().getTime() - action.getEndedAt().getTime());
+        assertTrue(actions.isEmpty());
     }
 
     @Test
