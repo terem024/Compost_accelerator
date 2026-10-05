@@ -24,8 +24,8 @@ public class SensorReadingService {
     private static final BigDecimal DEFAULT_GAS_LOW = new BigDecimal("40.00");
     private static final BigDecimal DEFAULT_TEMPERATURE_LOW = new BigDecimal("30.00");
     private static final BigDecimal DEFAULT_TEMPERATURE_HIGH = new BigDecimal("50.00");
-    private static final BigDecimal DEFAULT_HUMIDITY_LOW = new BigDecimal("40.00");
-    private static final BigDecimal DEFAULT_HUMIDITY_HIGH = new BigDecimal("70.00");
+    private static final BigDecimal DEFAULT_HUMIDITY_LOW = new BigDecimal("90.00");
+    private static final BigDecimal DEFAULT_HUMIDITY_HIGH = new BigDecimal("96.00");
 
     private final JdbcTemplate jdbcTemplate;
     private final ThresholdService thresholdService;

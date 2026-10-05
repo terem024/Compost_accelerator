@@ -10,6 +10,8 @@ import {
 } from '../services/api.js';
 
 const GAS_HIGH_THRESHOLD = 60;
+const HUMIDITY_LOW_THRESHOLD = 90;
+const HUMIDITY_HIGH_THRESHOLD = 96;
 const DASHBOARD_POLL_INTERVAL_MS = 5000;
 const THRESHOLD_POLL_INTERVAL_MS = 30000;
 const DASHBOARD_SENSORS_KEY = 'dashboardSensors';
@@ -264,8 +266,8 @@ function Dashboard({ user, online }) {
       return 'Optimal';
     }
     if (sensor.id === 'humidity') {
-      if (sensor.value > 70) return 'High';
-      if (sensor.value < 40) return 'Low';
+      if (sensor.value > HUMIDITY_HIGH_THRESHOLD) return 'High';
+      if (sensor.value < HUMIDITY_LOW_THRESHOLD) return 'Low';
       return 'Optimal';
     }
     return 'Unknown';
@@ -372,7 +374,7 @@ function Dashboard({ user, online }) {
           <div className={`actuator-badge ${actuatorStatus?.fanActive ? 'active' : 'inactive'}`}>
             {getActuatorLabel(fanRuntime, actuatorStatus?.fanActive)}
           </div>
-          <p>Triggered when gas is above {thresholds.gasMax}% or humidity is above 70%.</p>
+          <p>Triggered when gas is above {thresholds.gasMax}% or humidity is above {HUMIDITY_HIGH_THRESHOLD}%.</p>
           <span>Last pulse: {formatDateTime(fanRuntime?.lastActivatedAt)}</span>
         </div>
 

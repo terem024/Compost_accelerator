@@ -21,7 +21,7 @@ public class ActuatorLogService {
     private static final String FAN = "FAN";
     private static final String WATER_SPRAY = "WATER_SPRAY";
     private static final String STATUS_ON = "ON";
-    private static final BigDecimal HUMIDITY_HIGH_THRESHOLD = new BigDecimal("70.00");
+    private static final BigDecimal HUMIDITY_HIGH_THRESHOLD = new BigDecimal("96.00");
     private final JdbcTemplate jdbcTemplate;
     private final EmailService emailService;
 

@@ -57,7 +57,7 @@ class ActuatorControlLogicTests {
         assertEquals("FAN", action.getActuatorType());
         assertEquals("HUMIDITY", action.getTriggerSource());
         assertEquals(new BigDecimal("100"), action.getTriggerValue());
-        assertEquals(new BigDecimal("70.00"), action.getThresholdValue());
+        assertEquals(new BigDecimal("96.00"), action.getThresholdValue());
         assertEquals(5, action.getDurationSeconds());
         assertEquals(30_000L, action.getCooldownUntil().getTime() - action.getEndedAt().getTime());
     }
