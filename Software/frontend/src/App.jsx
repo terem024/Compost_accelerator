@@ -7,6 +7,7 @@ import ResetPassword from './pages/ResetPassword.jsx';
 import Dashboard from './pages/Dashboard.jsx';
 import Prediction from './pages/Prediction.jsx';
 import Logs from './pages/Logs.jsx';
+import DailyReports from './pages/DailyReports.jsx';
 import Settings from './pages/Settings.jsx';
 import ErrorPage from './pages/ErrorPage.jsx';
 import useInactivityTimeout from './hooks/useInactivityTimeout.jsx';
@@ -263,6 +264,17 @@ function App() {
           element={
             user ? (
               <Logs user={user} online={online} />
+            ) : (
+              <Navigate to="/" replace />
+            )
+          }
+        />
+
+        <Route
+          path="/daily-reports"
+          element={
+            user ? (
+              <DailyReports user={user} online={online} />
             ) : (
               <Navigate to="/" replace />
             )
