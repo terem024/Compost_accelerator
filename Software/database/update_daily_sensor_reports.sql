@@ -1,5 +1,6 @@
 CREATE TABLE IF NOT EXISTS `daily_sensor_reports` (
   `report_id` BIGINT NOT NULL AUTO_INCREMENT,
+  `batch_id` INT DEFAULT NULL,
   `report_date` DATE NOT NULL,
   `reading_count` BIGINT NOT NULL DEFAULT 0,
   `average_moisture` DECIMAL(10,2) DEFAULT NULL,
@@ -17,5 +18,5 @@ CREATE TABLE IF NOT EXISTS `daily_sensor_reports` (
   `sensor_availability_issues` TEXT DEFAULT NULL,
   `generated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`report_id`),
-  UNIQUE KEY `uq_daily_sensor_reports_report_date` (`report_date`)
+  UNIQUE KEY `uq_daily_sensor_reports_batch_date` (`batch_id`, `report_date`)
 );
