@@ -60,7 +60,6 @@ function ReportCard({ report }) {
 }
 
 function batchLabel(report) {
-  if (!report.batchId) return 'Unassigned legacy reports';
   const title = report.batchName || report.batchCode || `Batch ${report.batchId}`;
   const code = report.batchCode && report.batchCode !== title ? ` (${report.batchCode})` : '';
   return `${title}${code}`;
@@ -69,8 +68,7 @@ function batchLabel(report) {
 function DailyReports({ user, online }) {
   const [reports, setReports] = useState([]);
   const [activeBatch, setActiveBatch] = useState(null);
-  const [selectedHistoryBatch, setSelectedHistoryBatch] = useState('');
-  const [selectedHistoryDate, setSelectedHistoryDate] = useState('');
+  const [selectedActiveDate, setSelectedActiveDate] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -103,30 +101,22 @@ function DailyReports({ user, online }) {
   const activeBatchReports = activeBatch
     ? reports.filter((report) => report.batchId === activeBatch.batchId)
     : [];
-  const currentReport = activeBatchReports[0];
+  const currentReport = activeBatchReports.find(
+    (report) => report.reportDate === selectedActiveDate
+  ) || activeBatchReports[0];
 
-  const batchChoices = [];
-  const batchChoiceIds = new Set();
-  reports.forEach((report) => {
-    const id = report.batchId ? String(report.batchId) : 'legacy';
-    if (!batchChoiceIds.has(id)) {
-      batchChoiceIds.add(id);
-      batchChoices.push({ id, label: batchLabel(report) });
-    }
-  });
-
-  const historyBatchId = selectedHistoryBatch || batchChoices[0]?.id || '';
-  const historyReports = reports.filter(
-    (report) => (report.batchId ? String(report.batchId) : 'legacy') === historyBatchId
-  );
-  const historyReport = historyReports.find(
-    (report) => report.reportDate === selectedHistoryDate
-  ) || historyReports[0];
-
-  const handleBatchChange = (event) => {
-    setSelectedHistoryBatch(event.target.value);
-    setSelectedHistoryDate('');
-  };
+  const completedReportsByBatch = new Map();
+  reports
+    .filter((report) => report.batchId && report.batchStatus === 'COMPLETED')
+    .forEach((report) => {
+      if (!completedReportsByBatch.has(report.batchId)) {
+        completedReportsByBatch.set(report.batchId, {
+          label: batchLabel(report),
+          reports: [],
+        });
+      }
+      completedReportsByBatch.get(report.batchId).reports.push(report);
+    });
 
   return (
     <Layout
@@ -148,7 +138,24 @@ function DailyReports({ user, online }) {
         {loading ? (
           <div className="daily-report-empty">Loading daily reports...</div>
         ) : currentReport ? (
-          <ReportCard report={currentReport} />
+          <>
+            <div className="daily-report-history">
+              <label htmlFor="activeReportDate">Report date</label>
+              <select
+                id="activeReportDate"
+                value={currentReport.reportDate}
+                onChange={(event) => setSelectedActiveDate(event.target.value)}
+              >
+                {activeBatchReports.map((report) => (
+                  <option key={report.reportId} value={report.reportDate}>
+                    {formatDate(report.reportDate)}
+                  </option>
+                ))}
+              </select>
+              <span>{activeBatchReports.length} saved report{activeBatchReports.length === 1 ? '' : 's'} for this batch</span>
+            </div>
+            <ReportCard report={currentReport} />
+          </>
         ) : (
           <div className="daily-report-empty">
             {activeBatch
@@ -162,41 +169,59 @@ function DailyReports({ user, online }) {
         <div className="daily-report-header">
           <div>
             <h3>Batch Report History</h3>
-            <p>Saved summaries stay with their batch, including after the batch is finished.</p>
           </div>
         </div>
 
         {loading ? (
           <div className="daily-report-empty">Loading batch report history...</div>
-        ) : batchChoices.length === 0 ? (
-          <div className="daily-report-empty">No saved daily reports are available yet.</div>
+        ) : completedReportsByBatch.size === 0 ? (
+          <div className="daily-report-empty">
+            No completed batch reports yet. Daily summaries will appear here after a batch is finished.
+          </div>
         ) : (
-          <>
-            <div className="daily-report-history">
-              <label htmlFor="historyBatch">Batch</label>
-              <select id="historyBatch" value={historyBatchId} onChange={handleBatchChange}>
-                {batchChoices.map((batch) => (
-                  <option key={batch.id} value={batch.id}>{batch.label}</option>
-                ))}
-              </select>
-
-              <label htmlFor="historyReportDate">Report date</label>
-              <select
-                id="historyReportDate"
-                value={historyReport?.reportDate || ''}
-                onChange={(event) => setSelectedHistoryDate(event.target.value)}
-              >
-                {historyReports.map((report) => (
-                  <option key={report.reportId} value={report.reportDate}>
-                    {formatDate(report.reportDate)}
-                  </option>
-                ))}
-              </select>
-              <span>{historyReports.length} saved report{historyReports.length === 1 ? '' : 's'}</span>
-            </div>
-
-            {historyReport && <ReportCard report={historyReport} />}
-          </>
+          <div className="batch-history-groups">
+            {[...completedReportsByBatch.entries()].map(([batchId, batch]) => (
+              <section className="batch-history-group" key={batchId}>
+                <div className="batch-history-heading">
+                  <h4>{batch.label}</h4>
+                  <span>Completed · {batch.reports.length} daily report{batch.reports.length === 1 ? '' : 's'}</span>
+                </div>
+                <div className="batch-history-entries">
+                  {batch.reports.map((report) => {
+                    const metrics = [
+                      { label: 'Moisture', average: report.averageMoisture, minimum: report.minimumMoisture, maximum: report.maximumMoisture, unit: '%' },
+                      { label: 'Gas', average: report.averageGas, minimum: report.minimumGas, maximum: report.maximumGas, unit: '%' },
+                      { label: 'Temperature', average: report.averageTemperature, minimum: report.minimumTemperature, maximum: report.maximumTemperature, unit: '°C' },
+                      { label: 'Humidity', average: report.averageHumidity, minimum: report.minimumHumidity, maximum: report.maximumHumidity, unit: '%' },
+                    ];
+                    return (
+                      <details className="batch-history-entry" key={report.reportId}>
+                        <summary>
+                          <span>{formatDate(report.reportDate)}</span>
+                          <span>{report.readingCount} readings</span>
+                          <span>Generated {formatDateTime(report.generatedAt)}</span>
+                        </summary>
+                        <dl className="batch-history-metrics">
+                          {metrics.map((metric) => (
+                            <div key={metric.label}>
+                              <dt>{metric.label}</dt>
+                              <dd>
+                                {formatNumber(metric.average)} {metric.unit}
+                                <small>Min {formatNumber(metric.minimum)} · Max {formatNumber(metric.maximum)} {metric.unit}</small>
+                              </dd>
+                            </div>
+                          ))}
+                        </dl>
+                        <p className="batch-history-issues">
+                          <strong>Sensor availability:</strong> {report.sensorAvailabilityIssues || 'No issues detected.'}
+                        </p>
+                      </details>
+                    );
+                  })}
+                </div>
+              </section>
+            ))}
+          </div>
         )}
       </section>
     </Layout>

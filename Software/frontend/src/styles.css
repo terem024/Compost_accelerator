@@ -1212,6 +1212,104 @@ button {
   font-size: 0.82rem;
 }
 
+.batch-history-groups {
+  display: grid;
+  gap: 14px;
+}
+
+.batch-history-group {
+  overflow: hidden;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  border-radius: 8px;
+  background: rgba(30, 41, 59, 0.45);
+}
+
+.batch-history-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.12);
+}
+
+.batch-history-heading h4 {
+  margin: 0;
+  color: #e2e8f0;
+}
+
+.batch-history-heading span,
+.batch-history-entry summary span:nth-child(n + 2) {
+  color: #94a3b8;
+  font-size: 0.84rem;
+}
+
+.batch-history-entry {
+  border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+}
+
+.batch-history-entry:last-child {
+  border-bottom: 0;
+}
+
+.batch-history-entry summary {
+  display: grid;
+  grid-template-columns: minmax(110px, 1fr) minmax(100px, 0.8fr) minmax(210px, 1.4fr);
+  align-items: center;
+  gap: 12px;
+  padding: 13px 16px;
+  cursor: pointer;
+  list-style-position: inside;
+}
+
+.batch-history-entry summary span:first-of-type {
+  color: #e2e8f0;
+  font-weight: 600;
+}
+
+.batch-history-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin: 0;
+  padding: 14px 16px 8px;
+}
+
+.batch-history-metrics > div {
+  min-width: 0;
+}
+
+.batch-history-metrics dt {
+  margin-bottom: 4px;
+  color: #94a3b8;
+  font-size: 0.8rem;
+}
+
+.batch-history-metrics dd {
+  margin: 0;
+  color: #e2e8f0;
+  font-weight: 600;
+}
+
+.batch-history-metrics small {
+  display: block;
+  margin-top: 3px;
+  color: #94a3b8;
+  font-size: 0.76rem;
+  font-weight: 400;
+}
+
+.batch-history-issues {
+  margin: 0;
+  padding: 8px 16px 14px;
+  color: #94a3b8;
+  line-height: 1.5;
+}
+
+.batch-history-issues strong {
+  color: #cbd5e1;
+}
+
 .daily-report-summary,
 .daily-report-grid {
   display: grid;
@@ -2543,6 +2641,23 @@ button {
 
   .daily-report-header {
     display: grid;
+  }
+
+  .batch-history-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .batch-history-entry summary {
+    grid-template-columns: 1fr;
+    gap: 5px;
+    padding-left: 10px;
+  }
+
+  .batch-history-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    padding-right: 12px;
+    padding-left: 12px;
   }
 
   .auth-page {
