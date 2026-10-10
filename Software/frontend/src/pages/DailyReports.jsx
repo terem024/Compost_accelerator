@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 import Layout from '../components/Layout.jsx';
-import { getDailyReports } from '../services/api.js';
+import { getActiveCompostBatch, getDailyReports } from '../services/api.js';
 
 function DailyReports({ user, online }) {
   const [reports, setReports] = useState([]);
+  const [batchStartDate, setBatchStartDate] = useState('');
   const [selectedReportDate, setSelectedReportDate] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -11,12 +12,19 @@ function DailyReports({ user, online }) {
   useEffect(() => {
     let active = true;
 
-    getDailyReports()
-      .then((data) => {
-        if (active) setReports(Array.isArray(data) ? data : []);
-      })
-      .catch(() => {
-        if (active) setError('Unable to load daily reports right now.');
+    Promise.allSettled([getDailyReports(), getActiveCompostBatch()])
+      .then(([reportsResult, batchResult]) => {
+        if (!active) return;
+
+        if (reportsResult.status === 'fulfilled') {
+          setReports(Array.isArray(reportsResult.value) ? reportsResult.value : []);
+        } else {
+          setError('Unable to load daily reports right now.');
+        }
+
+        if (batchResult.status === 'fulfilled') {
+          setBatchStartDate(batchResult.value?.startDate || '');
+        }
       })
       .finally(() => {
         if (active) setLoading(false);
@@ -27,9 +35,15 @@ function DailyReports({ user, online }) {
     };
   }, []);
 
-  const selectedReport = reports.find(
+  // The batch begins partway through its start date, so hide that partial day
+  // and all report dates before it.
+  const availableReports = batchStartDate
+    ? reports.filter((report) => report.reportDate > batchStartDate)
+    : reports;
+
+  const selectedReport = availableReports.find(
     (report) => report.reportDate === selectedReportDate
-  ) || reports[0];
+  ) || availableReports[0];
 
   const formatNumber = (value) => (
     value === null || value === undefined ? '--' : Number(value).toFixed(1)
@@ -70,7 +84,11 @@ function DailyReports({ user, online }) {
         {loading ? (
           <div className="daily-report-empty">Loading daily reports...</div>
         ) : !selectedReport ? (
-          <div className="daily-report-empty">No daily reports have been generated yet.</div>
+          <div className="daily-report-empty">
+            {batchStartDate
+              ? 'No full-day reports are available since this batch started.'
+              : 'No daily reports have been generated yet.'}
+          </div>
         ) : (
           <>
             <div className="daily-report-history">
@@ -80,13 +98,13 @@ function DailyReports({ user, online }) {
                 value={selectedReport.reportDate}
                 onChange={(event) => setSelectedReportDate(event.target.value)}
               >
-                {reports.map((report) => (
+                {availableReports.map((report) => (
                   <option key={report.reportId} value={report.reportDate}>
                     {formatDate(report.reportDate)}
                   </option>
                 ))}
               </select>
-              <span>{reports.length} saved report{reports.length === 1 ? '' : 's'}</span>
+              <span>{availableReports.length} saved report{availableReports.length === 1 ? '' : 's'}</span>
             </div>
 
             <div className="daily-report-card">
