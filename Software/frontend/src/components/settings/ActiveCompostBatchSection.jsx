@@ -61,6 +61,9 @@ function ActiveCompostBatchSection() {
   const [passwordPromptOpen, setPasswordPromptOpen] = useState(false);
   const [currentPassword, setCurrentPassword] = useState('');
   const [passwordError, setPasswordError] = useState('');
+  const [cancelPromptOpen, setCancelPromptOpen] = useState(false);
+  const [cancelConfirmation, setCancelConfirmation] = useState('');
+  const [cancelPromptError, setCancelPromptError] = useState('');
 
   const selectedBatch = useMemo(
     () => batches.find((batch) => batch.batchId === selectedBatchId) || activeBatch,
@@ -106,6 +109,7 @@ function ActiveCompostBatchSection() {
     setMessage('');
     setError('');
     setPasswordError('');
+    setCancelPromptError('');
   }
 
   function updateField(field, value) {
@@ -243,6 +247,32 @@ function ActiveCompostBatchSection() {
     } finally {
       setSaving(false);
     }
+  }
+
+  function requestBatchCancellation() {
+    clearMessages();
+    setCancelConfirmation('');
+    setCancelPromptError('');
+    setCancelPromptOpen(true);
+  }
+
+  async function confirmBatchCancellation(event) {
+    event.preventDefault();
+    if (cancelConfirmation.trim().toLowerCase() !== 'cancel') {
+      setCancelPromptError('Type cancel to confirm batch cancellation.');
+      return;
+    }
+
+    setCancelPromptOpen(false);
+    setCancelConfirmation('');
+    setCancelPromptError('');
+    await handleStatus('CANCELLED');
+  }
+
+  function closeCancelPrompt() {
+    setCancelPromptOpen(false);
+    setCancelConfirmation('');
+    setCancelPromptError('');
   }
 
   if (loading) {
@@ -412,7 +442,7 @@ function ActiveCompostBatchSection() {
           <button type="button" className="secondary-button" onClick={() => handleStatus('COMPLETED')} disabled={saving || !canUpdateSelectedStatus}>
             Mark COMPLETED
           </button>
-          <button type="button" className="secondary-button" onClick={() => handleStatus('CANCELLED')} disabled={saving || !canUpdateSelectedStatus}>
+          <button type="button" className="secondary-button" onClick={requestBatchCancellation} disabled={saving || !canUpdateSelectedStatus}>
             Mark CANCELLED
           </button>
         </div>
@@ -483,6 +513,39 @@ function ActiveCompostBatchSection() {
               </button>
               <button type="submit" className="primary-button" disabled={saving}>
                 {saving ? 'Verifying...' : 'Confirm Save'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {cancelPromptOpen && (
+        <div className="threshold-password-overlay" role="dialog" aria-modal="true" aria-labelledby="cancel-batch-title">
+          <form className="threshold-password-card" onSubmit={confirmBatchCancellation}>
+            <h3 id="cancel-batch-title">Confirm Batch Cancellation</h3>
+            <p>
+              This will mark {selectedBatch?.batchCode || 'this batch'} as canceled. Type <strong>cancel</strong> to confirm.
+            </p>
+            {cancelPromptError && <p className="form-message error">{cancelPromptError}</p>}
+
+            <label>
+              Type cancel to continue
+              <input
+                type="text"
+                value={cancelConfirmation}
+                onChange={(event) => setCancelConfirmation(event.target.value)}
+                autoComplete="off"
+                autoFocus
+                disabled={saving}
+              />
+            </label>
+
+            <div className="threshold-password-actions">
+              <button type="button" className="secondary-button" onClick={closeCancelPrompt} disabled={saving}>
+                Keep Batch
+              </button>
+              <button type="submit" className="primary-button" disabled={saving}>
+                {saving ? 'Canceling...' : 'Confirm Cancellation'}
               </button>
             </div>
           </form>

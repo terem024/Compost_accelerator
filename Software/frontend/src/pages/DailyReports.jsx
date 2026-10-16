@@ -107,7 +107,8 @@ function DailyReports({ user, online }) {
 
   const completedReportsByBatch = new Map();
   reports
-    .filter((report) => report.batchId && report.batchStatus === 'COMPLETED')
+    .filter((report) => report.batchId
+      && ['COMPLETED', 'CANCELLED'].includes(report.batchStatus))
     .forEach((report) => {
       if (!completedReportsByBatch.has(report.batchId)) {
         completedReportsByBatch.set(report.batchId, {
@@ -184,7 +185,10 @@ function DailyReports({ user, online }) {
               <section className="batch-history-group" key={batchId}>
                 <div className="batch-history-heading">
                   <h4>{batch.label}</h4>
-                  <span>Completed · {batch.reports.length} daily report{batch.reports.length === 1 ? '' : 's'}</span>
+                  <span>
+                    {batch.reports[0].batchStatus === 'CANCELLED' ? 'Canceled' : 'Completed'}
+                    {' · '}{batch.reports.length} daily report{batch.reports.length === 1 ? '' : 's'}
+                  </span>
                 </div>
                 <div className="batch-history-entries">
                   {batch.reports.map((report) => {
