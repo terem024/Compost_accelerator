@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   createCompostBatch,
   getActiveCompostBatch,
@@ -61,6 +61,10 @@ function ActiveCompostBatchSection() {
   const [passwordPromptOpen, setPasswordPromptOpen] = useState(false);
   const [currentPassword, setCurrentPassword] = useState('');
   const [passwordError, setPasswordError] = useState('');
+  const [pendingStatusChange, setPendingStatusChange] = useState(null);
+  const [statusConfirmation, setStatusConfirmation] = useState('');
+  const [statusError, setStatusError] = useState('');
+  const statusTriggerRef = useRef(null);
 
   const selectedBatch = useMemo(
     () => batches.find((batch) => batch.batchId === selectedBatchId) || activeBatch,
@@ -225,21 +229,61 @@ function ActiveCompostBatchSection() {
     }
   }
 
-  async function handleStatus(status) {
-    if (!selectedBatch?.batchId) {
+  function handleStatus(status, trigger) {
+    if (!canUpdateSelectedStatus || saving) {
       setError('Select a compost batch first.');
       return;
     }
 
-    setSaving(true);
     clearMessages();
+    statusTriggerRef.current = trigger;
+    setStatusConfirmation('');
+    setStatusError('');
+    setPendingStatusChange({ batchId: selectedBatch.batchId, batchCode: selectedBatch.batchCode, status });
+  }
+
+  function closeStatusConfirmation() {
+    if (saving) return;
+    setPendingStatusChange(null);
+    setStatusConfirmation('');
+    setStatusError('');
+    statusTriggerRef.current?.focus();
+  }
+
+  function handleConfirmationKeyDown(event) {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      closeStatusConfirmation();
+    }
+    if (event.key === 'Tab') {
+      const controls = [...event.currentTarget.querySelectorAll('input:not(:disabled), button:not(:disabled)')];
+      const first = controls[0];
+      const last = controls[controls.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last?.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first?.focus();
+      }
+    }
+  }
+
+  async function confirmStatusChange(event) {
+    event.preventDefault();
+    if (!pendingStatusChange || statusConfirmation !== 'Confirm' || saving) return;
+
+    setSaving(true);
+    setStatusError('');
 
     try {
-      const updated = await updateCompostBatchStatus(selectedBatch.batchId, status);
+      const updated = await updateCompostBatchStatus(pendingStatusChange.batchId, pendingStatusChange.status);
       setMessage(`${updated.batchCode} status changed to ${updated.status}.`);
+      setPendingStatusChange(null);
+      setStatusConfirmation('');
       await loadBatches();
     } catch (err) {
-      setError(err.message || 'Failed to update batch status.');
+      setStatusError(err.message || 'Failed to update batch status.');
     } finally {
       setSaving(false);
     }
@@ -406,13 +450,13 @@ function ActiveCompostBatchSection() {
           <button type="button" className="primary-button" onClick={handleStartCreate} disabled={saving}>
             Create Batch
           </button>
-          <button type="button" className="secondary-button" onClick={() => handleStatus('READY')} disabled={saving || !canUpdateSelectedStatus}>
+          <button type="button" className="secondary-button" onClick={(event) => handleStatus('READY', event.currentTarget)} disabled={saving || !canUpdateSelectedStatus}>
             Mark READY
           </button>
-          <button type="button" className="secondary-button" onClick={() => handleStatus('COMPLETED')} disabled={saving || !canUpdateSelectedStatus}>
+          <button type="button" className="secondary-button" onClick={(event) => handleStatus('COMPLETED', event.currentTarget)} disabled={saving || !canUpdateSelectedStatus}>
             Mark COMPLETED
           </button>
-          <button type="button" className="secondary-button" onClick={() => handleStatus('CANCELLED')} disabled={saving || !canUpdateSelectedStatus}>
+          <button type="button" className="secondary-button" onClick={(event) => handleStatus('CANCELLED', event.currentTarget)} disabled={saving || !canUpdateSelectedStatus}>
             Mark CANCELLED
           </button>
         </div>
@@ -449,6 +493,36 @@ function ActiveCompostBatchSection() {
               )}
             </div>
           ))}
+        </div>
+      )}
+
+      {pendingStatusChange && (
+        <div className="threshold-password-overlay" role="dialog" aria-modal="true" aria-labelledby="batch-status-title" aria-describedby="batch-status-description" onKeyDown={handleConfirmationKeyDown}>
+          <form className="threshold-password-card" onSubmit={confirmStatusChange}>
+            <h3 id="batch-status-title">Confirm Batch Status</h3>
+            <p id="batch-status-description">Mark {pendingStatusChange.batchCode} as {pendingStatusChange.status}?</p>
+            {(pendingStatusChange.status === 'COMPLETED' || pendingStatusChange.status === 'CANCELLED') && (
+              <p>This batch cannot be reactivated through the app after this change.</p>
+            )}
+            {statusError && <p className="form-message error" role="alert">{statusError}</p>}
+            <label htmlFor="batch-status-confirmation">Type Confirm to proceed</label>
+            <input
+              id="batch-status-confirmation"
+              type="text"
+              value={statusConfirmation}
+              onChange={(event) => setStatusConfirmation(event.target.value)}
+              autoComplete="off"
+              spellCheck={false}
+              readOnly={saving}
+              autoFocus
+            />
+            <div className="threshold-password-actions">
+              <button type="button" className="secondary-button" onClick={closeStatusConfirmation} disabled={saving}>Go Back</button>
+              <button type="submit" className="primary-button" disabled={saving || statusConfirmation !== 'Confirm'}>
+                {saving ? 'Saving...' : `Mark ${pendingStatusChange.status}`}
+              </button>
+            </div>
+          </form>
         </div>
       )}
 
