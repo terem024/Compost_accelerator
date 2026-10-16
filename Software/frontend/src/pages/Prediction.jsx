@@ -406,12 +406,13 @@ function Prediction({ user, online }) {
                   Review the latest sensor history and track how actuator-set thresholds influence compost conditions.
                 </p>
               </div>
-              <div className="legend-toggle-row">
+              <div className="legend-toggle-row" role="group" aria-label="Sensor chart series">
                 {SENSOR_SERIES.map((series) => (
                   <button
                     key={series.id}
                     type="button"
                     className={`series-toggle ${activeSeries[series.id] ? 'active' : ''}`}
+                    aria-pressed={activeSeries[series.id]}
                     onClick={() => setActiveSeries((prev) => ({ ...prev, [series.id]: !prev[series.id] }))}
                     style={{ borderColor: series.color }}
                   >
@@ -422,7 +423,6 @@ function Prediction({ user, online }) {
                         borderRadius: 9999,
                         background: series.color,
                         display: 'inline-block',
-                        marginRight: 8,
                       }}
                     />
                     {series.label}

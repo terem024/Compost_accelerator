@@ -420,6 +420,15 @@ button {
   margin: 0;
 }
 
+.chart-header-row {
+  flex-wrap: wrap;
+}
+
+.chart-header-row > :first-child {
+  flex: 1 1 340px;
+  min-width: 0;
+}
+
 .confidence-pill {
   display: inline-flex;
   gap: 8px;
@@ -432,22 +441,30 @@ button {
 }
 
 .legend-toggle-row {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(4, max-content);
+  flex: 0 0 auto;
   gap: 10px;
 }
 
 .series-toggle {
   display: inline-flex;
+  justify-content: center;
+  min-height: 44px;
+  white-space: nowrap;
   gap: 10px;
   align-items: center;
   border: 1px solid rgba(148, 163, 184, 0.16);
-  border-radius: 16px;
+  border-radius: 8px;
   padding: 10px 14px;
   background: rgba(15, 23, 42, 0.88);
   color: #cbd5e1;
   cursor: pointer;
   transition: background 0.2s ease, color 0.2s ease;
+}
+
+.series-toggle > span {
+  flex-shrink: 0;
 }
 
 .series-toggle.active {
@@ -2760,6 +2777,10 @@ button {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .chart-header-row > :first-child {
+    flex: 0 1 auto;
+  }
+
   .series-toggle {
     min-width: 0;
     justify-content: flex-start;
@@ -2814,6 +2835,12 @@ button {
 }
 
 @media (max-width: 420px) {
+  .series-toggle {
+    gap: 6px;
+    padding: 8px 6px;
+    font-size: 12px;
+  }
+
   .actuator-status-grid {
     grid-template-columns: 1fr;
   }
