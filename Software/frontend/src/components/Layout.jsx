@@ -8,6 +8,7 @@ function Layout({ user, title, subtitle, children, online, setOnline, hideSideba
     { path: '/dashboard', label: 'Dashboard' },
     { path: '/prediction', label: 'AI Prediction' },
     { path: '/logs', label: 'Logs / History' },
+    { path: '/daily-reports', label: 'Daily Reports' },
     { path: '/settings', label: 'Settings' }
   ];
 

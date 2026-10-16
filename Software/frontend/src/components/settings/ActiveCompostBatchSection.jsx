@@ -110,6 +110,7 @@ function ActiveCompostBatchSection() {
     setMessage('');
     setError('');
     setPasswordError('');
+    setCancelPromptError('');
   }
 
   function updateField(field, value) {
@@ -562,6 +563,7 @@ function ActiveCompostBatchSection() {
           </form>
         </div>
       )}
+
     </div>
   );
 }

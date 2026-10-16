@@ -6,6 +6,11 @@ import java.time.LocalDate;
 
 public class DailyReportResponse {
     private Long reportId;
+    private Integer batchId;
+    private String batchCode;
+    private String batchName;
+    private String batchStatus;
+    private LocalDate batchStartDate;
     private LocalDate reportDate;
     private Long readingCount;
     private BigDecimal averageMoisture;
@@ -24,6 +29,11 @@ public class DailyReportResponse {
     private Timestamp generatedAt;
 
     public DailyReportResponse(Long reportId,
+                               Integer batchId,
+                               String batchCode,
+                               String batchName,
+                               String batchStatus,
+                               LocalDate batchStartDate,
                                LocalDate reportDate,
                                Long readingCount,
                                BigDecimal averageMoisture,
@@ -41,6 +51,11 @@ public class DailyReportResponse {
                                String sensorAvailabilityIssues,
                                Timestamp generatedAt) {
         this.reportId = reportId;
+        this.batchId = batchId;
+        this.batchCode = batchCode;
+        this.batchName = batchName;
+        this.batchStatus = batchStatus;
+        this.batchStartDate = batchStartDate;
         this.reportDate = reportDate;
         this.readingCount = readingCount;
         this.averageMoisture = averageMoisture;
@@ -66,6 +81,16 @@ public class DailyReportResponse {
     public LocalDate getReportDate() {
         return reportDate;
     }
+
+    public Integer getBatchId() { return batchId; }
+
+    public String getBatchCode() { return batchCode; }
+
+    public String getBatchName() { return batchName; }
+
+    public String getBatchStatus() { return batchStatus; }
+
+    public LocalDate getBatchStartDate() { return batchStartDate; }
 
     public Long getReadingCount() {
         return readingCount;
