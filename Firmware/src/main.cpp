@@ -368,7 +368,22 @@ static bool sendReadingToBackend(const SensorPayload &payload) {
     return false;
   }
 
-  StaticJsonDocument<256> doc;
+  StaticJsonDocument<1024> doc;
+  JsonArray probes = doc.createNestedArray("moistureProbes");
+  JsonObject probe1 = probes.createNestedObject();
+  probe1["probe"] = 1;
+  probe1["gpio"] = SOIL_MOISTURE_1_PIN;
+  probe1["enabled"] = bool(ENABLE_MOISTURE_SENSOR_1);
+  probe1["valid"] = payload.moisture1Valid;
+  if (ENABLE_MOISTURE_SENSOR_1) probe1["rawAdc"] = static_cast<int>(payload.moisture1Raw);
+  if (payload.moisture1Valid) probe1["percent"] = payload.moisturePercent1;
+  JsonObject probe2 = probes.createNestedObject();
+  probe2["probe"] = 2;
+  probe2["gpio"] = SOIL_MOISTURE_2_PIN;
+  probe2["enabled"] = bool(ENABLE_MOISTURE_SENSOR_2);
+  probe2["valid"] = payload.moisture2Valid;
+  if (ENABLE_MOISTURE_SENSOR_2) probe2["rawAdc"] = static_cast<int>(payload.moisture2Raw);
+  if (payload.moisture2Valid) probe2["percent"] = payload.moisturePercent2;
   if (payload.moisture1Valid) doc["moisturePercent1"] = payload.moisturePercent1;
   if (payload.moisture2Valid) doc["moisturePercent2"] = payload.moisturePercent2;
   if (payload.gasValid) doc["gasLevel"] = payload.gasPercent;

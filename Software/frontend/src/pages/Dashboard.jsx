@@ -84,6 +84,7 @@ function Dashboard({ user, online }) {
   const [thresholds, setThresholds] = useState(() => loadStoredThresholds());
   const [actuatorStatus, setActuatorStatus] = useState(null);
   const [latestReadingAt, setLatestReadingAt] = useState(null);
+  const [moistureProbes, setMoistureProbes] = useState([]);
   const [dataState, setDataState] = useState('loading');
   const [connectionStatus, setConnectionStatus] = useState(null);
   const [noActiveBatch, setNoActiveBatch] = useState(false);
@@ -152,12 +153,14 @@ function Dashboard({ user, online }) {
         if (latestReading?.createdAt) {
           setSensors(buildSensorCards(latestReading));
           setLatestReadingAt(latestReading.createdAt);
+          setMoistureProbes(Array.isArray(latestReading.moistureProbes) ? latestReading.moistureProbes : []);
           setDataState('live');
           return;
         }
 
         setSensors([]);
         setLatestReadingAt(null);
+        setMoistureProbes([]);
         setDataState('waiting');
       } finally {
         dashboardRequestInFlight = false;
@@ -319,6 +322,28 @@ function Dashboard({ user, online }) {
           Latest reading: {formatDateTime(latestReadingAt)}
         </div>
       </div>
+
+      <section className="moisture-diagnostics" aria-labelledby="moisture-diagnostics-title">
+        <h3 id="moisture-diagnostics-title">Moisture Probe Readings</h3>
+        <p>Received: {formatDateTime(latestReadingAt)}{dataState === 'offline' ? ' (connection unavailable)' : ''}</p>
+        {moistureProbes.length === 0 ? (
+          <p>Individual probe diagnostics are unavailable. Upload the updated ESP32 firmware to receive raw readings.</p>
+        ) : (
+          <div className="moisture-probe-grid">
+            {moistureProbes.map((probe) => (
+              <div key={probe.probe} className="moisture-probe-item">
+                <h4>Sensor {probe.probe} - GPIO{probe.gpio}{probe.gpio === 36 ? ' / SP' : ''}</h4>
+                <strong>{!probe.enabled ? 'Disabled' : probe.valid ? 'Reading received' : 'Invalid reading'}</strong>
+                <dl>
+                  <div><dt>Raw ADC</dt><dd>{probe.rawAdc ?? '--'} / 4095</dd></div>
+                  <div><dt>Moisture</dt><dd>{probe.valid && probe.percent != null ? `${Number(probe.percent).toFixed(1)}%` : '--'}</dd></div>
+                </dl>
+                {probe.enabled && !probe.valid && <p>Check probe, power, and signal connection.</p>}
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
 
       <div className="sensor-health-banner" role="status" aria-live="polite">
         <div className="sensor-health-heading">

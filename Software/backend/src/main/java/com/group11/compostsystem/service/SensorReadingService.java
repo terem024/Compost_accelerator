@@ -16,6 +16,8 @@ import com.group11.compostsystem.dto.ActuatorActionResponse;
 import com.group11.compostsystem.dto.SensorReadingRequest;
 import com.group11.compostsystem.dto.SensorReadingResponse;
 import com.group11.compostsystem.dto.ThresholdSettingsResponse;
+import com.group11.compostsystem.dto.MoistureProbeDiagnostic;
+import jakarta.annotation.PostConstruct;
 
 @Service
 public class SensorReadingService {
@@ -33,6 +35,32 @@ public class SensorReadingService {
     private final SensorSseService sensorSseService;
     private final SensorConnectionService sensorConnectionService;
 
+    @PostConstruct
+    public void ensureMoistureDiagnosticsTable() {
+        jdbcTemplate.execute("""
+                CREATE TABLE IF NOT EXISTS moisture_probe_diagnostics (
+                    reading_id BIGINT NOT NULL,
+                    probe INT NOT NULL,
+                    gpio INT NOT NULL,
+                    raw_adc INT NULL,
+                    percent DECIMAL(6,2) NULL,
+                    enabled BOOLEAN NOT NULL,
+                    valid BOOLEAN NOT NULL,
+                    PRIMARY KEY (reading_id, probe)
+                )
+                """);
+    }
+
+    private void attachMoistureDiagnostics(SensorReadingResponse response) {
+        if (response == null) return;
+        response.setMoistureProbes(jdbcTemplate.query("""
+                SELECT probe, gpio, raw_adc, percent, enabled, valid
+                FROM moisture_probe_diagnostics WHERE reading_id = ? ORDER BY probe
+                """, (rs, row) -> new MoistureProbeDiagnostic(rs.getInt("probe"), rs.getInt("gpio"),
+                rs.getObject("raw_adc", Integer.class), rs.getBigDecimal("percent"),
+                rs.getBoolean("enabled"), rs.getBoolean("valid")), response.getReadingId()));
+    }
+
     public SensorReadingService(JdbcTemplate jdbcTemplate,
                                 ThresholdService thresholdService,
                                 ActuatorLogService actuatorLogService,
@@ -46,6 +74,7 @@ public class SensorReadingService {
     }
 
     public SensorReadingResponse saveSensorReading(SensorReadingRequest request) {
+        validateMoistureDiagnostics(request.getMoistureProbes());
         BigDecimal moistureLevel = request.getEffectiveMoistureLevel();
         ThresholdSettingsResponse threshold = thresholdService.getThresholdSettings();
         Integer batchId = resolveBatchId(request.getBatchId());
@@ -85,6 +114,17 @@ public class SensorReadingService {
         }
 
         SensorReadingResponse response = getSensorReadingById(generatedId.longValue());
+        if (request.getMoistureProbes() != null) {
+            for (MoistureProbeDiagnostic probe : request.getMoistureProbes()) {
+                jdbcTemplate.update("""
+                        INSERT INTO moisture_probe_diagnostics
+                        (reading_id, probe, gpio, raw_adc, percent, enabled, valid)
+                        VALUES (?, ?, ?, ?, ?, ?, ?)
+                        """, generatedId.longValue(), probe.probe(), probe.gpio(), probe.rawAdc(),
+                        probe.percent(), probe.enabled(), probe.valid());
+            }
+        }
+        attachMoistureDiagnostics(response);
         sensorConnectionService.recordReadingReceived(response);
         List<ActuatorActionResponse> actions = actuatorLogService.applyAutomaticControl(response, threshold);
         response.setActuatorActions(actions);
@@ -129,6 +169,21 @@ public class SensorReadingService {
             throw new NoActiveBatchException(
                     "No active compost batch found. Create or activate a compost batch before saving sensor readings."
             );
+        }
+    }
+
+    void validateMoistureDiagnostics(List<MoistureProbeDiagnostic> probes) {
+        if (probes == null) return;
+        java.util.Set<Integer> seen = new java.util.HashSet<>();
+        for (MoistureProbeDiagnostic probe : probes) {
+            if (probe == null || probe.probe() < 1 || probe.probe() > 2 || !seen.add(probe.probe())
+                    || probe.gpio() < 0 || probe.gpio() > 39
+                    || (probe.rawAdc() != null && (probe.rawAdc() < 0 || probe.rawAdc() > 4095))
+                    || (probe.percent() != null && (probe.percent().signum() < 0
+                        || probe.percent().compareTo(new BigDecimal("100")) > 0))
+                    || (probe.valid() && (!probe.enabled() || probe.rawAdc() == null || probe.percent() == null))) {
+                throw new IllegalArgumentException("Invalid moisture probe diagnostics.");
+            }
         }
     }
 
@@ -191,7 +246,7 @@ public class SensorReadingService {
 
         try {
 
-            return jdbcTemplate.queryForObject("CALL sp_get_latest_sensor_reading()", (rs, rowNum) ->
+            SensorReadingResponse response = jdbcTemplate.queryForObject("CALL sp_get_latest_sensor_reading()", (rs, rowNum) ->
                     mapSensorReading(
                             rs.getLong("reading_id"),
                             rs.getObject("batch_id", Integer.class),
@@ -207,6 +262,8 @@ public class SensorReadingService {
                     )
             );
 
+            attachMoistureDiagnostics(response);
+            return response;
         } catch (EmptyResultDataAccessException ex) {
             return null;
         }

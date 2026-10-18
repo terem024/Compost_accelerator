@@ -4,6 +4,10 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 
 public class SensorReadingRequest {
+    private java.util.List<MoistureProbeDiagnostic> moistureProbes;
+
+    public java.util.List<MoistureProbeDiagnostic> getMoistureProbes() { return moistureProbes; }
+    public void setMoistureProbes(java.util.List<MoistureProbeDiagnostic> probes) { moistureProbes = probes; }
 
     private Integer batchId;
     private BigDecimal moisturePercent1;

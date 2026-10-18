@@ -6,6 +6,10 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class SensorReadingResponse {
+    private List<MoistureProbeDiagnostic> moistureProbes = List.of();
+
+    public List<MoistureProbeDiagnostic> getMoistureProbes() { return moistureProbes; }
+    public void setMoistureProbes(List<MoistureProbeDiagnostic> probes) { moistureProbes = probes; }
 
     private Long readingId;
     private Integer batchId;
