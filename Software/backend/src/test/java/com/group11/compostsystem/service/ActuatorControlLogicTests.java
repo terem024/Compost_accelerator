@@ -57,7 +57,7 @@ class ActuatorControlLogicTests {
         assertEquals("FAN", action.getActuatorType());
         assertEquals("HUMIDITY", action.getTriggerSource());
         assertEquals(new BigDecimal("100"), action.getTriggerValue());
-        assertEquals(new BigDecimal("96.00"), action.getThresholdValue());
+        assertEquals(new BigDecimal("85.00"), action.getThresholdValue());
         assertEquals(5, action.getDurationSeconds());
         assertEquals(30_000L, action.getCooldownUntil().getTime() - action.getEndedAt().getTime());
     }
@@ -69,6 +69,23 @@ class ActuatorControlLogicTests {
 
         assertTrue(service.applyAutomaticControl(reading("50", "60"), thresholds()).isEmpty());
         verifyNoInteractions(jdbc);
+    }
+
+    @Test
+    void humidityAtEightyFiveDoesNotActivateFan() {
+        JdbcTemplate jdbc = mock(JdbcTemplate.class);
+        ActuatorLogService service = new ActuatorLogService(jdbc, mock(EmailService.class));
+        assertTrue(service.applyAutomaticControl(reading("60", "20", "85.00"), thresholds()).isEmpty());
+        verifyNoInteractions(jdbc);
+    }
+
+    @Test
+    void humidityJustAboveEightyFiveActivatesFan() {
+        var actions = serviceWithAvailableActuators().applyAutomaticControl(
+                reading("60", "20", "85.01"), thresholds());
+        assertEquals(1, actions.size());
+        assertEquals("HUMIDITY", actions.get(0).getTriggerSource());
+        assertEquals("FAN", actions.get(0).getActuatorType());
     }
 
     @SuppressWarnings("unchecked")
