@@ -405,46 +405,6 @@ button {
   gap: 18px;
 }
 
-.moisture-diagnostics {
-  margin: 20px 0;
-  padding: 16px 0;
-  border-block: 1px solid rgba(148, 163, 184, 0.24);
-}
-
-.moisture-diagnostics h3,
-.moisture-probe-item h4 {
-  margin: 0 0 8px;
-}
-
-.moisture-diagnostics > p {
-  color: #94a3b8;
-}
-
-.moisture-probe-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
-  gap: 16px;
-}
-
-.moisture-probe-item {
-  min-width: 0;
-  padding: 16px;
-  border: 1px solid rgba(148, 163, 184, 0.24);
-  border-radius: 8px;
-}
-
-.moisture-probe-item dl > div {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  margin-top: 8px;
-}
-
-.moisture-probe-item dd {
-  margin: 0;
-  font-variant-numeric: tabular-nums;
-}
-
 .chart-header-row,
 .prediction-chart-footer {
   display: flex;
