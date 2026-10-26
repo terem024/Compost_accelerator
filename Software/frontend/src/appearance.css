@@ -14,13 +14,13 @@
 }
 :root[data-theme='light'] {
   color-scheme: light;
-  --page: #f3f5f7;
+  --page: #e4eaee;
   --surface: #ffffff;
-  --inset: #e9eef2;
-  --text: #24313c;
-  --heading: #111c24;
-  --muted: #52616e;
-  --secondary: #344653;
+  --inset: #edf2f5;
+  --text: #1e2c36;
+  --heading: #10212c;
+  --muted: #425462;
+  --secondary: #304451;
   --link: #075985;
   --accent-text: #174b83;
   --positive: #12603b;
@@ -61,7 +61,61 @@
 .notification-modal p { color: var(--secondary); }
 .topbar-right { flex-wrap: wrap; }
 :root[data-theme='light'] :is(.auth-page, .error-page) { background: var(--page); }
-:root[data-theme='light'] .sidebar { background: #fff; border-color: #cbd5e1; }
+:root[data-theme='light'] .sidebar { background: #f8fafb; border-color: #aebdc8; }
+:root[data-theme='light'] body { font-weight: 450; }
+:root[data-theme='light'] .topbar {
+  background: #f8fbfa;
+  border: 1px solid #afc3ba;
+  border-top: 3px solid #277454;
+  border-radius: 8px;
+}
+:root[data-theme='light'] .sidebar a { color: #304451; font-weight: 500; }
+:root[data-theme='light'] .sidebar a.active {
+  background: #d8eade;
+  color: #164c35;
+  box-shadow: inset 4px 0 #277454;
+  font-weight: 700;
+  border-radius: 6px;
+}
+:root[data-theme='light'] .sidebar a:hover { background: #e2ebe7; color: #164c35; }
+:root[data-theme='light'] :is(.status-card, .actuator-card, .prediction-card, .logs-panel, .settings-screen, .chart-frame) {
+  border: 1px solid #b0bec9;
+  background: #fff;
+  border-radius: 8px;
+}
+:root[data-theme='light'] .status-card {
+  border-top: 4px solid #647987;
+  box-shadow: 0 2px 3px rgb(23 43 56 / 6%);
+}
+:root[data-theme='light'] .status-card.optimal { border-top-color: #21845c; }
+:root[data-theme='light'] .status-card.low { border-top-color: #326ea8; }
+:root[data-theme='light'] :is(.status-card.high, .status-card.unavailable) { border-top-color: #b94357; }
+:root[data-theme='light'] .card-icon { color: #425462; }
+:root[data-theme='light'] .card-description { font-style: normal; color: #425462; line-height: 1.55; }
+:root[data-theme='light'] .card-status { border: 1px solid; }
+:root[data-theme='light'] .card-status.optimal { background: #d5efdf; border-color: #6aaa85; color: #135235; }
+:root[data-theme='light'] .card-status.low { background: #dceafa; border-color: #82a9d0; color: #194b7c; }
+:root[data-theme='light'] :is(.card-status.high, .card-status.unavailable) { background: #fbe0e4; border-color: #ce8b97; color: #8c2139; }
+:root[data-theme='light'] .sensor-health-banner {
+  background: transparent;
+  border: 0;
+  border-block: 1px solid #afbdc7;
+  padding-inline: 0;
+}
+:root[data-theme='light'] .sensor-health-item { background: #f8fbfa; border-color: #a6bdb0; border-radius: 6px; }
+:root[data-theme='light'] .sensor-health-item.working .sensor-health-indicator { background: #15834b; }
+:root[data-theme='light'] .sensor-health-heading strong { color: #10212c; }
+:root[data-theme='light'] :is(.profile-chip, .reading-chip, .latest-reading-chip, .actuator-badge.inactive) {
+  background: #dce5eb;
+  color: #293e4d;
+  border: 1px solid #aebdc8;
+}
+:root[data-theme='light'] .status-chip.online { background: #d4efdd; border: 1px solid #85b399; }
+:root[data-theme='light'] .theme-toggle { background: #fff; border-color: #6f8798; }
+:root[data-theme='light'] :is(.logs-table th, .settings-inner-sidebar) { background: #dfe8ed; }
+:root[data-theme='light'] :is(.logs-table td, .prediction-result-row) { border-color: #bdcbd4; }
+:root[data-theme='light'] :is(input, select, textarea) { background: #fff; border-color: #7c929f; }
+:root[data-theme='light'] :is(.secondary-button, .back-button) { background: #dce6ec; border: 1px solid #9bafbc; color: #233d4d; }
 :root[data-theme='light'] :is(.status-chip.online, .status-pill.normal, .status-badge.normal, .success-box) { color: #12603b; }
 :root[data-theme='light'] :is(.status-chip.offline, .error-box, .status-pill.high, .status-badge.high) { color: #9f1239; }
 :root[data-theme='light'] :is(.prediction-message, .prediction-limit-status, .batch-notice) { color: #344653; }
