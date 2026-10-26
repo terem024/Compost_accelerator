@@ -57,6 +57,9 @@ class PredictionServiceTests {
     @Test
     @SuppressWarnings("unchecked")
     void providerFailureDoesNotSaveOrConsumeTheDailyLimit() {
+        when(jdbc.queryForList("CALL sp_get_compost_batch_by_id(?)", 3))
+                .thenReturn(List.of(Map.of("batch_id", 3, "status", "ACTIVE",
+                        "actual_ready_date", "2026-09-12", "latest_predicted_ready_date", "2026-09-12")));
         when(jdbc.queryForObject(anyString(), any(RowMapper.class), any(Object[].class)))
                 .thenThrow(new EmptyResultDataAccessException(1));
         when(jdbc.queryForList("CALL sp_get_latest_sensor_reading_for_batch(?)", 3))
@@ -73,6 +76,8 @@ class PredictionServiceTests {
         verify(gemini).generate(prompt.capture());
         assertTrue(prompt.getValue().contains("\"batch_id\":3"));
         assertTrue(prompt.getValue().contains("\"batch_weight_kg\":5"));
+        assertFalse(prompt.getValue().contains("\"actual_ready_date\""));
+        assertFalse(prompt.getValue().contains("\"latest_predicted_ready_date\""));
     }
 
     @Test
@@ -106,5 +111,58 @@ class PredictionServiceTests {
         assertNull(availability.getNextPredictionAt());
         assertNull(availability.getPrediction());
         verifyNoInteractions(gemini);
+    }
+
+    @Test
+    void pastReadinessDateIsNotReportedAsConfirmedMaturity() {
+        var result = estimate(LocalDate.of(2026, 9, 12), 0);
+        result.setPredictionSummary("The compost is ready for use.");
+        PredictionService.reviewEstimate(result, LocalDate.of(2026, 10, 26));
+        assertNull(result.getEstimatedReadyDate());
+        assertNull(result.getEstimatedDaysRemaining());
+        assertNotNull(result.getEstimateWarning());
+        assertFalse(result.getPredictionSummary().contains("ready for use"));
+    }
+
+    @Test
+    void inconsistentFutureDateIsRejectedRatherThanInventingAnotherDate() {
+        var result = estimate(LocalDate.of(2026, 11, 1), 40);
+        PredictionService.reviewEstimate(result, LocalDate.of(2026, 10, 26));
+        assertNull(result.getEstimatedReadyDate());
+    }
+
+    @Test
+    void matchingFutureEstimateIsPreserved() {
+        var result = estimate(LocalDate.of(2026, 11, 1), 6);
+        PredictionService.reviewEstimate(result, LocalDate.of(2026, 10, 26));
+        assertEquals(LocalDate.of(2026, 11, 1), result.getEstimatedReadyDate());
+        assertEquals(6, result.getEstimatedDaysRemaining());
+        assertNull(result.getEstimateWarning());
+    }
+
+    @Test
+    void savedEstimateUsesItsGenerationDateAndUpdatesRemainingDays() {
+        var result = estimate(LocalDate.of(2026, 11, 1), 7);
+        result.setPredictionCreatedAt(java.time.OffsetDateTime.parse("2026-10-25T09:00:00+08:00"));
+        PredictionService.reviewEstimate(result, LocalDate.of(2026, 10, 26));
+        assertEquals(6, result.getEstimatedDaysRemaining());
+        assertNotNull(result.getEstimatedReadyDate());
+    }
+
+    @Test
+    void missingDateOrZeroDaysRequiresInspection() {
+        for (var result : List.of(estimate(null, 4), estimate(LocalDate.of(2026, 11, 1), 0), estimate(null, null))) {
+            PredictionService.reviewEstimate(result, LocalDate.of(2026, 10, 26));
+            assertNull(result.getEstimatedReadyDate());
+            assertNull(result.getEstimatedDaysRemaining());
+            assertNotNull(result.getEstimateWarning());
+        }
+    }
+
+    private AIPredictionResponse estimate(LocalDate date, Integer days) {
+        var result = new AIPredictionResponse();
+        result.setEstimatedReadyDate(date);
+        result.setEstimatedDaysRemaining(days);
+        return result;
     }
 }

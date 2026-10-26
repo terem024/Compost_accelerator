@@ -14,6 +14,7 @@ import useInactivityTimeout from './hooks/useInactivityTimeout.jsx';
 import AppErrorBoundary from './components/AppErrorBoundary.jsx';
 import SessionTimeoutModal from './components/SessionTimeoutModal.jsx';
 import ToastContainer from './components/ToastContainer.jsx';
+import useAppearance from './hooks/useAppearance.js';
 import {
   getStoredAuthSession,
   logoutUser,
@@ -21,6 +22,7 @@ import {
 } from './services/api.js';
 
 function App() {
+  useAppearance();
   const location = useLocation();
   const [authSession, setAuthSession] = useState(() => getStoredAuthSession());
   const [checkingSession, setCheckingSession] = useState(true);

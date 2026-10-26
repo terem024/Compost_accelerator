@@ -1,8 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import { Sun, Moon } from 'lucide-react';
+import useAppearance from '../hooks/useAppearance.js';
 
 function Layout({ user, title, subtitle, children, online, setOnline, hideSidebar = false }) {
   const location = useLocation();
+  const [appearance, updateAppearance] = useAppearance();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const navItems = [
     { path: '/dashboard', label: 'Dashboard' },
@@ -59,6 +62,14 @@ function Layout({ user, title, subtitle, children, online, setOnline, hideSideba
             </div>
           </div>
           <div className="topbar-right">
+            {location.pathname === '/dashboard' && (
+              <button type="button" className="theme-toggle" role="switch"
+                aria-checked={appearance.theme === 'light'} aria-label="Light mode"
+                title={appearance.theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}
+                onClick={() => updateAppearance({ theme: appearance.theme === 'light' ? 'dark' : 'light' })}>
+                {appearance.theme === 'light' ? <Sun size={20} /> : <Moon size={20} />}
+              </button>
+            )}
             <div className={`status-chip ${online ? 'online' : 'offline'}`}>
               <span className="status-dot" aria-hidden="true" />
               {online ? 'Online' : 'Offline'}

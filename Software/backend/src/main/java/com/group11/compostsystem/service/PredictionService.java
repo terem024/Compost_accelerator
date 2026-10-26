@@ -84,7 +84,7 @@ public class PredictionService {
                     true
             );
             if (todaysPrediction != null) {
-                return todaysPrediction;
+                return reviewEstimate(todaysPrediction, LocalDate.now(PREDICTION_ZONE));
             }
 
             Map<String, Object> latestReading = getLatestReading(selectedBatchId);
@@ -132,6 +132,15 @@ public class PredictionService {
             LocalDate estimatedReadyDate = getDate(aiJson, "estimated_ready_date");
             Integer estimatedDaysRemaining = getInteger(aiJson, "estimated_days_remaining");
             BigDecimal confidenceScore = getBigDecimal(aiJson, "confidence_score", new BigDecimal("0.70"));
+
+            AIPredictionResponse checked = reviewEstimate(AIPredictionResponse.success(
+                    "", null, selectedBatchId, predictedCondition, predictionSummary,
+                    estimatedReadyDate, estimatedDaysRemaining, recommendation, trendSummary, confidenceScore),
+                    LocalDate.now(PREDICTION_ZONE));
+            estimatedReadyDate = checked.getEstimatedReadyDate();
+            estimatedDaysRemaining = checked.getEstimatedDaysRemaining();
+            predictionSummary = checked.getPredictionSummary();
+            recommendation = checked.getRecommendation();
 
             savePrediction(
                     selectedBatchId,
@@ -208,6 +217,10 @@ public class PredictionService {
 
     private Map<String, Object> batchForPrediction(Map<String, Object> batch) {
         Map<String, Object> predictionBatch = new LinkedHashMap<>(batch);
+        // Outcome dates and previous predictions are not evidence of maturity.
+        predictionBatch.remove("actual_ready_date");
+        predictionBatch.remove("latest_predicted_ready_date");
+        predictionBatch.remove("initial_estimated_ready_date");
         String storedWeight = String.valueOf(batch.getOrDefault("fill_level", "HALF"));
         predictionBatch.remove("fill_level");
         predictionBatch.put("batch_weight_kg", "FULL".equalsIgnoreCase(storedWeight) ? 10 : 5);
@@ -341,7 +354,7 @@ public class PredictionService {
                                         .toOffsetDateTime()
                         );
                         response.setNextPredictionAt(nextPredictionTime());
-                        return response;
+                        return reviewEstimate(response, LocalDate.now(PREDICTION_ZONE));
                     },
                     batchId,
                     Timestamp.from(today.atStartOfDay(PREDICTION_ZONE).toInstant()),
@@ -472,7 +485,8 @@ public class PredictionService {
         - low moisture can trigger the water spray
         - high gas can trigger the fan
         - gas readings and the gas threshold are relative percentages from 0% to 100%, not PPM
-        Temperature and humidity are used mainly for prediction and condition analysis.
+        High humidity above 85 percent can also trigger the fan.
+        Moisture percentages are calibrated relative sensor indices, not measured water content.
 
         Your task:
         Estimate the compost condition and predict the possible date when it may become ready for use as natural fertilizer.
@@ -497,6 +511,12 @@ public class PredictionService {
         - Sensor averages and ranges alone do not establish a rising or falling trend.
         - Logged actuator commands do not prove water delivery or effective airflow.
         - Do not claim compost maturity or prediction accuracy has been validated.
+        - ACTIVE means the batch has not been confirmed ready. Never state it is complete or ready for use.
+        - Never infer actual readiness from batch age, a planned duration, or a previous estimated date.
+        - A readiness estimate must be strictly after analysisDate, with positive days remaining that match that date.
+        - If readiness may already have been reached, return null for both estimate fields and recommend physical inspection.
+        - Use brief, plain English: summary at most two short sentences, recommendation at most three actionable sentences.
+        - Explain unreliable or missing sensor data and avoid confident estimates when it affects the analysis.
         - If data is insufficient, say so in the summary and give a lower confidence score.
         - confidence_score must be between 0.00 and 1.00.
         - estimated_days_remaining must be a whole number or null.
@@ -513,6 +533,30 @@ public class PredictionService {
                 .trim();
 
         return objectMapper.readTree(cleaned);
+    }
+
+    static AIPredictionResponse reviewEstimate(AIPredictionResponse response, LocalDate today) {
+        LocalDate date = response.getEstimatedReadyDate();
+        Integer days = response.getEstimatedDaysRemaining();
+        LocalDate reference = response.getPredictionCreatedAt() == null ? today
+                : response.getPredictionCreatedAt().atZoneSameInstant(PREDICTION_ZONE).toLocalDate();
+        boolean invalid = (date != null && !date.isAfter(today))
+                || (days != null && days <= 0)
+                || (date == null) != (days == null)
+                || (date != null && days != null
+                    && java.time.temporal.ChronoUnit.DAYS.between(reference, date) != days);
+        if (invalid) {
+            response.setEstimatedReadyDate(null);
+            response.setEstimatedDaysRemaining(null);
+            response.setPredictionSummary("A reliable readiness date is not available. Physical inspection is needed before marking this batch ready.");
+            response.setRecommendation("Check the compost and sensor readings with the responsible personnel. Do not treat this AI result as confirmation of maturity.");
+        } else if (date != null) {
+            response.setEstimatedDaysRemaining((int) java.time.temporal.ChronoUnit.DAYS.between(today, date));
+        }
+        if (response.getEstimatedReadyDate() == null) {
+            response.setEstimateWarning("Readiness not confirmed. No reliable future date is available; inspect the compost before use.");
+        }
+        return response;
     }
 
     private Integer savePrediction(

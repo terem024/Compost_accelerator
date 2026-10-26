@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import Layout from '../components/Layout.jsx';
+import { presentPrediction } from '../services/predictionPresentation.js';
 import {
   generateAIPrediction,
   getActiveCompostBatch,
@@ -87,6 +88,7 @@ function Prediction({ user, online }) {
     humidity: true,
   });
   const [hoverInfo, setHoverInfo] = useState(null);
+  const result = presentPrediction(prediction);
 
   useEffect(() => {
     async function loadSensorHistory() {
@@ -609,50 +611,35 @@ function Prediction({ user, online }) {
                   </div>
                 )}
                 <div className="prediction-result-row">
-                  <strong>Status:</strong>
-                  <span>{prediction.success ? 'Success' : 'Failed'}</span>
+                  <strong>Current condition</strong>
+                  <span>{prediction.predictedCondition?.toLowerCase().replaceAll('_', ' ') || 'Not available'}</span>
                 </div>
 
                 <div className="prediction-result-row">
-                  <strong>Predicted Condition:</strong>
-                  <span>{prediction.predictedCondition || 'Not available'}</span>
+                  <strong>Estimated readiness</strong>
+                  <span>{result.usable ? new Date(`${prediction.estimatedReadyDate}T12:00:00`).toLocaleDateString([], { year: 'numeric', month: 'short', day: 'numeric' }) : 'Needs physical inspection'}</span>
                 </div>
 
                 <div className="prediction-result-row">
-                  <strong>Estimated Ready Date:</strong>
-                  <span>{prediction.estimatedReadyDate || 'Not available'}</span>
-                </div>
-
-                <div className="prediction-result-row">
-                  <strong>Estimated Days Remaining:</strong>
+                  <strong>Time remaining</strong>
                   <span>
-                    {prediction.estimatedDaysRemaining !== null &&
-                    prediction.estimatedDaysRemaining !== undefined
-                      ? `${prediction.estimatedDaysRemaining} day/s`
-                      : 'Not available'}
+                    {result.usable ? `About ${prediction.estimatedDaysRemaining} days` : 'Not reliably estimated'}
                   </span>
                 </div>
 
-                <div className="prediction-result-row">
-                  <strong>Confidence Score:</strong>
-                  <span>
-                    {prediction.confidenceScore !== null &&
-                    prediction.confidenceScore !== undefined
-                      ? prediction.confidenceScore
-                      : 'Not available'}
-                  </span>
-                </div>
-
-                <hr />
-
-                <h4>Prediction Summary</h4>
-                <p>{prediction.predictionSummary || 'No prediction summary available.'}</p>
-
-                <h4>Trend Summary</h4>
-                <p>{prediction.trendSummary || 'No trend summary available.'}</p>
-
-                <h4>Recommendation</h4>
-                <p>{prediction.recommendation || 'No recommendation available.'}</p>
+                {result.warning && <p className="prediction-message limit-message" role="status">{result.warning}</p>}
+                <h4>In short</h4>
+                <p>{result.summary}</p>
+                <h4>What to do next</h4>
+                <p>{result.recommendation}</p>
+                <p className="prediction-disclaimer">AI estimate only. Compost readiness requires physical inspection.</p>
+                <details className="prediction-details">
+                  <summary>Analysis details</summary>
+                  {prediction.predictionCreatedAt && <p>Generated: {new Date(prediction.predictionCreatedAt).toLocaleString()}</p>}
+                  <h4>Sensor history</h4>
+                  <p>{prediction.trendSummary || 'No history summary available.'}</p>
+                  <p>AI-reported confidence: {Number.isFinite(prediction.confidenceScore) ? `${Math.round(prediction.confidenceScore * 100)}%` : 'Not available'}. This is not measured accuracy.</p>
+                </details>
               </>
             )}
           </div>

@@ -21,6 +21,10 @@ public class AIPredictionResponse {
     private boolean dailyLimitReached;
     private OffsetDateTime predictionCreatedAt;
     private OffsetDateTime nextPredictionAt;
+    private String estimateWarning;
+
+    public String getEstimateWarning() { return estimateWarning; }
+    public void setEstimateWarning(String value) { estimateWarning = value; }
 
     public AIPredictionResponse() {
     }
