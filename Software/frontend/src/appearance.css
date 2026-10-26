@@ -14,9 +14,9 @@
 }
 :root[data-theme='light'] {
   color-scheme: light;
-  --page: #e4eaee;
-  --surface: #ffffff;
-  --inset: #edf2f5;
+  --page: #eeede8;
+  --surface: #faf9f6;
+  --inset: #e5e4df;
   --text: #1e2c36;
   --heading: #10212c;
   --muted: #425462;
@@ -61,10 +61,10 @@
 .notification-modal p { color: var(--secondary); }
 .topbar-right { flex-wrap: wrap; }
 :root[data-theme='light'] :is(.auth-page, .error-page) { background: var(--page); }
-:root[data-theme='light'] .sidebar { background: #f8fafb; border-color: #aebdc8; }
+:root[data-theme='light'] .sidebar { background: #f5f4ef; border-color: #b9bdb8; }
 :root[data-theme='light'] body { font-weight: 450; }
 :root[data-theme='light'] .topbar {
-  background: #f8fbfa;
+  background: var(--surface);
   border: 1px solid #afc3ba;
   border-top: 3px solid #277454;
   border-radius: 8px;
@@ -80,7 +80,7 @@
 :root[data-theme='light'] .sidebar a:hover { background: #e2ebe7; color: #164c35; }
 :root[data-theme='light'] :is(.status-card, .actuator-card, .prediction-card, .logs-panel, .settings-screen, .chart-frame) {
   border: 1px solid #b0bec9;
-  background: #fff;
+  background: var(--surface);
   border-radius: 8px;
 }
 :root[data-theme='light'] .status-card {
@@ -102,20 +102,20 @@
   border-block: 1px solid #afbdc7;
   padding-inline: 0;
 }
-:root[data-theme='light'] .sensor-health-item { background: #f8fbfa; border-color: #a6bdb0; border-radius: 6px; }
+:root[data-theme='light'] .sensor-health-item { background: var(--surface); border-color: #a6bdb0; border-radius: 6px; }
 :root[data-theme='light'] .sensor-health-item.working .sensor-health-indicator { background: #15834b; }
 :root[data-theme='light'] .sensor-health-heading strong { color: #10212c; }
 :root[data-theme='light'] :is(.profile-chip, .reading-chip, .latest-reading-chip, .actuator-badge.inactive) {
-  background: #dce5eb;
+  background: #e1e2dc;
   color: #293e4d;
   border: 1px solid #aebdc8;
 }
 :root[data-theme='light'] .status-chip.online { background: #d4efdd; border: 1px solid #85b399; }
-:root[data-theme='light'] .theme-toggle { background: #fff; border-color: #6f8798; }
-:root[data-theme='light'] :is(.logs-table th, .settings-inner-sidebar) { background: #dfe8ed; }
+:root[data-theme='light'] .theme-toggle { background: var(--surface); border-color: #6f8798; }
+:root[data-theme='light'] :is(.logs-table th, .settings-inner-sidebar) { background: var(--inset); }
 :root[data-theme='light'] :is(.logs-table td, .prediction-result-row) { border-color: #bdcbd4; }
-:root[data-theme='light'] :is(input, select, textarea) { background: #fff; border-color: #7c929f; }
-:root[data-theme='light'] :is(.secondary-button, .back-button) { background: #dce6ec; border: 1px solid #9bafbc; color: #233d4d; }
+:root[data-theme='light'] :is(input, select, textarea) { background: var(--surface); border-color: #7c929f; }
+:root[data-theme='light'] :is(.secondary-button, .back-button) { background: var(--inset); border: 1px solid #9bafbc; color: #233d4d; }
 :root[data-theme='light'] :is(.status-chip.online, .status-pill.normal, .status-badge.normal, .success-box) { color: #12603b; }
 :root[data-theme='light'] :is(.status-chip.offline, .error-box, .status-pill.high, .status-badge.high) { color: #9f1239; }
 :root[data-theme='light'] :is(.prediction-message, .prediction-limit-status, .batch-notice) { color: #344653; }
