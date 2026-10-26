@@ -1,4 +1,6 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import Swal from 'sweetalert2';
+import 'sweetalert2/dist/sweetalert2.min.css';
 import Layout from '../components/Layout.jsx';
 import { presentPrediction } from '../services/predictionPresentation.js';
 import {
@@ -69,6 +71,14 @@ function formatCountdown(totalSeconds) {
 }
 
 function Prediction({ user, online }) {
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+      if (Swal.getPopup()?.classList.contains('prediction-success-alert')) Swal.close();
+    };
+  }, []);
   const [batchId, setBatchId] = useState('');
   const [activeBatch, setActiveBatch] = useState(null);
   const [batches, setBatches] = useState([]);
@@ -288,6 +298,7 @@ function Prediction({ user, online }) {
       setPredictionModalOpen(true);
 
       const response = await generateAIPrediction(batchId || null);
+      if (!mounted.current) return;
 
       setPrediction(response);
       if (response.nextPredictionAt) {
@@ -297,6 +308,21 @@ function Prediction({ user, online }) {
           nextPredictionAt: response.nextPredictionAt,
           prediction: response,
         });
+      }
+      if (response.success && !response.dailyLimitReached) {
+        setPredictionModalOpen(false);
+        await Swal.fire({
+          icon: 'success',
+          titleText: 'AI analysis available',
+          text: 'Your compost analysis is available. Open the result to review the estimate and recommendations.',
+          confirmButtonText: 'View result',
+          confirmButtonColor: '#277454',
+          background: 'var(--surface)',
+          color: 'var(--text)',
+          heightAuto: false,
+          customClass: { popup: 'prediction-success-alert' },
+        });
+        if (mounted.current) setPredictionModalOpen(true);
       }
     } catch (error) {
       setPredictionError(error.message || 'AI prediction is currently unavailable.');

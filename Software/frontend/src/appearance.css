@@ -53,6 +53,14 @@
 .font-preview { padding-block: 20px; }
 .prediction-details { border-top: 1px solid #718096; padding-block: 16px; }
 .prediction-details summary { cursor: pointer; font-weight: 600; }
+.swal2-popup.prediction-success-alert {
+  font: inherit;
+  border: 1px solid #718096;
+  border-radius: 8px;
+}
+.prediction-success-alert .swal2-title { font-size: 1.375rem; color: var(--heading); }
+.prediction-success-alert .swal2-html-container { font-size: 1rem; line-height: 1.6; }
+.prediction-success-alert .swal2-confirm { font-size: 1rem; }
 .prediction-disclaimer { color: var(--muted); font-size: .875rem; }
 .prediction-result-row { gap: 16px; flex-wrap: wrap; }
 .prediction-result-row span { overflow-wrap: anywhere; }
