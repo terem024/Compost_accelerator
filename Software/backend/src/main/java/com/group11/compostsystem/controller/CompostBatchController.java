@@ -70,6 +70,8 @@ public class CompostBatchController {
             Integer userId = resolveUserId(authorizationHeader);
             CompostBatchResponse response = compostBatchService.createBatch(request, userId);
             return ResponseEntity.ok(response);
+        } catch (CompostBatchService.ActiveBatchConflictException e) {
+            return ResponseEntity.status(409).body(error(e.getMessage()));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(error(e.getMessage()));
         } catch (EmptyResultDataAccessException e) {
@@ -101,6 +103,8 @@ public class CompostBatchController {
         try {
             resolveUserId(authorizationHeader);
             return ResponseEntity.ok(compostBatchService.setActiveBatch(batchId));
+        } catch (CompostBatchService.ActiveBatchConflictException e) {
+            return ResponseEntity.status(409).body(error(e.getMessage()));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(error(e.getMessage()));
         } catch (EmptyResultDataAccessException e) {
@@ -117,6 +121,8 @@ public class CompostBatchController {
         try {
             resolveUserId(authorizationHeader);
             return ResponseEntity.ok(compostBatchService.updateBatchStatus(batchId, request));
+        } catch (CompostBatchService.ActiveBatchConflictException e) {
+            return ResponseEntity.status(409).body(error(e.getMessage()));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(error(e.getMessage()));
         } catch (EmptyResultDataAccessException e) {

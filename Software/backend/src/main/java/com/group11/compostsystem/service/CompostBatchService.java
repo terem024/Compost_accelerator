@@ -6,12 +6,14 @@ import com.group11.compostsystem.dto.CompostBatchStatusRequest;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.sql.Date;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Set;
+import java.util.function.Supplier;
 
 @Service
 public class CompostBatchService {
@@ -41,10 +43,16 @@ public class CompostBatchService {
         this.jdbcTemplate = jdbcTemplate;
     }
 
+    public static class ActiveBatchConflictException extends IllegalStateException {
+        public ActiveBatchConflictException(String message) { super(message); }
+    }
+
+    @Transactional
     public CompostBatchResponse createBatch(CompostBatchRequest request, Integer createdBy) {
         validateBatchRequest(request);
-
-        return jdbcTemplate.queryForObject(
+        return withActivationLock(() -> {
+            ensureNoOtherActiveBatch(-1);
+            return jdbcTemplate.queryForObject(
                 "CALL sp_create_compost_batch(?, ?, ?, ?, ?, ?, ?, ?)",
                 (rs, rowNum) -> mapBatch(rs),
                 trim(request.getBatchName()),
@@ -56,6 +64,7 @@ public class CompostBatchService {
                 trimToNull(request.getNotes()),
                 createdBy
         );
+        });
     }
 
     public CompostBatchResponse getActiveBatch() {
@@ -91,12 +100,16 @@ public class CompostBatchService {
         );
     }
 
+    @Transactional
     public CompostBatchResponse setActiveBatch(Integer batchId) {
-        return jdbcTemplate.queryForObject(
+        return withActivationLock(() -> {
+            ensureNoOtherActiveBatch(batchId);
+            return jdbcTemplate.queryForObject(
                 "CALL sp_set_active_compost_batch(?)",
                 (rs, rowNum) -> mapBatch(rs),
                 batchId
         );
+        });
     }
 
     public CompostBatchResponse updateBatch(Integer batchId, CompostBatchRequest request, Integer updatedByUserId) {
@@ -128,6 +141,7 @@ public class CompostBatchService {
         );
     }
 
+    @Transactional
     public CompostBatchResponse updateBatchStatus(Integer batchId, CompostBatchStatusRequest request) {
         if (request.getStatus() == null || request.getStatus().isBlank()) {
             throw new IllegalArgumentException("Status is required.");
@@ -138,13 +152,45 @@ public class CompostBatchService {
             throw new IllegalArgumentException("Invalid compost batch status.");
         }
 
-        return jdbcTemplate.queryForObject(
+        Supplier<CompostBatchResponse> update = () -> jdbcTemplate.queryForObject(
                 "CALL sp_update_compost_batch_status(?, ?, ?)",
                 (rs, rowNum) -> mapBatch(rs),
                 batchId,
                 status,
                 parseOptionalDate(request.getActualReadyDate())
         );
+        if ("ACTIVE".equals(status)) {
+            return withActivationLock(() -> {
+                ensureNoOtherActiveBatch(batchId);
+                return update.get();
+            });
+        }
+        return update.get();
+    }
+
+    private void ensureNoOtherActiveBatch(Integer batchId) {
+        Integer count = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM compost_batches WHERE status = 'ACTIVE' AND batch_id <> ?",
+                Integer.class, batchId);
+        if (count == null || count > 0) {
+            throw new ActiveBatchConflictException(
+                    "An ongoing compost batch already exists. Finish or cancel it before creating or activating another batch.");
+        }
+    }
+
+    private <T> T withActivationLock(Supplier<T> operation) {
+        // Transaction binding keeps the advisory lock and procedure on the same connection.
+        // MySQL advisory locks survive the existing procedures' internal COMMIT statements.
+        Integer acquired = jdbcTemplate.queryForObject(
+                "SELECT GET_LOCK('compost_batch_activation', 5)", Integer.class);
+        if (acquired == null || acquired != 1) {
+            throw new ActiveBatchConflictException("Another batch change is in progress. Please try again shortly.");
+        }
+        try {
+            return operation.get();
+        } finally {
+            jdbcTemplate.queryForObject("SELECT RELEASE_LOCK('compost_batch_activation')", Integer.class);
+        }
     }
 
     private void validateBatchRequest(CompostBatchRequest request) {

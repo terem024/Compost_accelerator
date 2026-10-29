@@ -338,6 +338,13 @@ function Dashboard({ user, online }) {
         </div>
       </div>
 
+      <div className="condition-legend" role="group" aria-label="Sensor reading status legend">
+        <strong>Reading status</strong>
+        <span className="legend-status low"><i aria-hidden="true" />Low</span>
+        <span className="legend-status optimal"><i aria-hidden="true" />Optimal</span>
+        <span className="legend-status high"><i aria-hidden="true" />High</span>
+        <span className="legend-status unavailable"><i aria-hidden="true" />Unavailable</span>
+      </div>
       <div className="cards-grid">
         {sensors.map((sensor) => {
           const status = getStatus(sensor);

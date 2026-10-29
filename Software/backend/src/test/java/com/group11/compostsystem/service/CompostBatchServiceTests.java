@@ -54,6 +54,8 @@ class CompostBatchServiceTests {
         JdbcTemplate jdbc = mock(JdbcTemplate.class);
         CompostBatchService service = new CompostBatchService(jdbc);
         CompostBatchRequest request = batchRequest();
+        when(jdbc.queryForObject("SELECT GET_LOCK('compost_batch_activation', 5)", Integer.class)).thenReturn(1);
+        when(jdbc.queryForObject(contains("SELECT COUNT(*)"), eq(Integer.class), eq(-1))).thenReturn(0);
         when(jdbc.queryForObject(anyString(), any(RowMapper.class), any(Object[].class))).thenReturn(null);
 
         service.createBatch(request, 7);
@@ -93,6 +95,8 @@ class CompostBatchServiceTests {
     void activateAndStatusActionsUseTheirExpectedProcedures() {
         JdbcTemplate jdbc = mock(JdbcTemplate.class);
         CompostBatchService service = new CompostBatchService(jdbc);
+        when(jdbc.queryForObject("SELECT GET_LOCK('compost_batch_activation', 5)", Integer.class)).thenReturn(1);
+        when(jdbc.queryForObject(contains("SELECT COUNT(*)"), eq(Integer.class), eq(4))).thenReturn(0);
         when(jdbc.queryForObject(anyString(), any(RowMapper.class), any(Object[].class))).thenReturn(null);
         CompostBatchStatusRequest statusRequest = new CompostBatchStatusRequest();
         statusRequest.setStatus("ready");
@@ -134,5 +138,67 @@ class CompostBatchServiceTests {
         request.setStartDate("2026-09-05");
         request.setNotes(" Test batch ");
         return request;
+    }
+
+    @Test
+    void ongoingBatchBlocksCreationWithoutInvokingCreateProcedure() {
+        JdbcTemplate jdbc = mock(JdbcTemplate.class);
+        var service = new CompostBatchService(jdbc);
+        when(jdbc.queryForObject("SELECT GET_LOCK('compost_batch_activation', 5)", Integer.class)).thenReturn(1);
+        when(jdbc.queryForObject(contains("SELECT COUNT(*)"), eq(Integer.class), eq(-1))).thenReturn(1);
+        assertThrows(CompostBatchService.ActiveBatchConflictException.class,
+                () -> service.createBatch(batchRequest(), 7));
+        verify(jdbc, never()).queryForObject(startsWith("CALL sp_create"), any(RowMapper.class), any(Object[].class));
+        verify(jdbc).queryForObject("SELECT RELEASE_LOCK('compost_batch_activation')", Integer.class);
+    }
+
+    @Test
+    void anotherOngoingBatchBlocksBothActivationEndpoints() {
+        JdbcTemplate jdbc = mock(JdbcTemplate.class);
+        var service = new CompostBatchService(jdbc);
+        when(jdbc.queryForObject("SELECT GET_LOCK('compost_batch_activation', 5)", Integer.class)).thenReturn(1);
+        when(jdbc.queryForObject(contains("SELECT COUNT(*)"), eq(Integer.class), eq(4))).thenReturn(1);
+        assertThrows(CompostBatchService.ActiveBatchConflictException.class, () -> service.setActiveBatch(4));
+        var request = new CompostBatchStatusRequest(); request.setStatus("ACTIVE");
+        assertThrows(CompostBatchService.ActiveBatchConflictException.class,
+                () -> service.updateBatchStatus(4, request));
+        verify(jdbc, never()).queryForObject(startsWith("CALL sp_"), any(RowMapper.class), any(Object[].class));
+    }
+
+    @Test
+    void lockTimeoutRejectsInsteadOfCreatingWithoutProtection() {
+        JdbcTemplate jdbc = mock(JdbcTemplate.class);
+        var service = new CompostBatchService(jdbc);
+        when(jdbc.queryForObject("SELECT GET_LOCK('compost_batch_activation', 5)", Integer.class)).thenReturn(0);
+        assertThrows(CompostBatchService.ActiveBatchConflictException.class,
+                () -> service.createBatch(batchRequest(), 7));
+        verify(jdbc, never()).queryForObject(startsWith("CALL sp_create"), any(RowMapper.class), any(Object[].class));
+        verify(jdbc, never()).queryForObject("SELECT RELEASE_LOCK('compost_batch_activation')", Integer.class);
+    }
+
+    @Test
+    void procedureFailureStillReleasesActivationLock() {
+        JdbcTemplate jdbc = mock(JdbcTemplate.class);
+        var service = new CompostBatchService(jdbc);
+        when(jdbc.queryForObject("SELECT GET_LOCK('compost_batch_activation', 5)", Integer.class)).thenReturn(1);
+        when(jdbc.queryForObject(contains("SELECT COUNT(*)"), eq(Integer.class), eq(-1))).thenReturn(0);
+        when(jdbc.queryForObject(startsWith("CALL sp_create"), any(RowMapper.class), any(Object[].class)))
+                .thenThrow(new org.springframework.dao.DataAccessResourceFailureException("Unavailable"));
+        assertThrows(org.springframework.dao.DataAccessResourceFailureException.class,
+                () -> service.createBatch(batchRequest(), 7));
+        verify(jdbc).queryForObject("SELECT RELEASE_LOCK('compost_batch_activation')", Integer.class);
+    }
+
+    @Test
+    void activationLockOperationsAreBoundToATransactionConnection() throws Exception {
+        org.junit.jupiter.api.Assertions.assertNotNull(CompostBatchService.class
+                .getMethod("createBatch", CompostBatchRequest.class, Integer.class)
+                .getAnnotation(org.springframework.transaction.annotation.Transactional.class));
+        org.junit.jupiter.api.Assertions.assertNotNull(CompostBatchService.class
+                .getMethod("setActiveBatch", Integer.class)
+                .getAnnotation(org.springframework.transaction.annotation.Transactional.class));
+        org.junit.jupiter.api.Assertions.assertNotNull(CompostBatchService.class
+                .getMethod("updateBatchStatus", Integer.class, CompostBatchStatusRequest.class)
+                .getAnnotation(org.springframework.transaction.annotation.Transactional.class));
     }
 }

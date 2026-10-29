@@ -55,6 +55,7 @@ function ActiveCompostBatchSection() {
   const [form, setForm] = useState(() => emptyForm());
   const [mode, setMode] = useState('view');
   const [loading, setLoading] = useState(true);
+  const [batchesLoaded, setBatchesLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
@@ -95,7 +96,9 @@ function ActiveCompostBatchSection() {
       setActiveBatch(currentActive);
       setSelectedBatchId(currentActive?.batchId || list[0]?.batchId || null);
       setForm(formFromBatch(currentActive || list[0]));
+      setBatchesLoaded(true);
     } catch (err) {
+      setBatchesLoaded(false);
       setError(err.message || 'Failed to load compost batches.');
     } finally {
       setLoading(false);
@@ -131,6 +134,7 @@ function ActiveCompostBatchSection() {
   }
 
   function handleStartCreate() {
+    if (!batchesLoaded || activeBatch) return;
     setMode('create');
     setSelectedBatchId(null);
     setForm(emptyForm());
@@ -159,6 +163,10 @@ function ActiveCompostBatchSection() {
 
   async function handleCreateBatch(event) {
     event.preventDefault();
+    if (!batchesLoaded || activeBatch) {
+      setError('An ongoing batch already exists, or batch status could not be verified. Refresh the batch list before creating another batch.');
+      return;
+    }
     setSaving(true);
     clearMessages();
 
@@ -169,6 +177,11 @@ function ActiveCompostBatchSection() {
       await loadBatches();
     } catch (err) {
       setError(err.message || 'Failed to create compost batch.');
+      if (err.status === 409) {
+        setMode('view');
+        await loadBatches();
+        setError(err.message);
+      }
     } finally {
       setSaving(false);
     }
@@ -216,6 +229,10 @@ function ActiveCompostBatchSection() {
   }
 
   async function handleSetActive(batchId) {
+    if (!batchesLoaded || (activeBatch && activeBatch.batchId !== batchId)) {
+      setError('Finish or cancel the ongoing batch before activating another batch.');
+      return;
+    }
     setSaving(true);
     clearMessages();
 
@@ -448,7 +465,9 @@ function ActiveCompostBatchSection() {
 
       {mode === 'view' && (
         <div className="batch-action-row">
-          <button type="button" className="primary-button" onClick={handleStartCreate} disabled={saving}>
+          <button type="button" className="primary-button" onClick={handleStartCreate}
+            aria-describedby={activeBatch ? 'ongoing-batch-guard' : undefined}
+            disabled={saving || loading || !batchesLoaded || Boolean(activeBatch)}>
             Create Batch
           </button>
           <button type="button" className="secondary-button" onClick={(event) => handleStatus('READY', event.currentTarget)} disabled={saving || !canUpdateSelectedStatus}>
@@ -462,6 +481,10 @@ function ActiveCompostBatchSection() {
           </button>
         </div>
       )}
+      {activeBatch && <p className="batch-creation-guard" id="ongoing-batch-guard" role="note">
+        <strong>{activeBatch.batchCode || activeBatch.batchName} is ongoing.</strong>{' '}
+        Finish or cancel this batch before creating or activating another batch.
+      </p>}
 
       {batches.length > 0 && (
         <div className="batch-list">
@@ -487,7 +510,7 @@ function ActiveCompostBatchSection() {
                   type="button"
                   className="secondary-button"
                   onClick={() => handleSetActive(batch.batchId)}
-                  disabled={saving || mode !== 'view'}
+                  disabled={saving || mode !== 'view' || !batchesLoaded || Boolean(activeBatch)}
                 >
                   Set Active
                 </button>
