@@ -5,6 +5,10 @@ public class RegisterRequest {
     private String email;
     private String password;
     private String confirmPassword;
+    private boolean acceptedTerms;
+
+    public boolean isAcceptedTerms() { return acceptedTerms; }
+    public void setAcceptedTerms(boolean acceptedTerms) { this.acceptedTerms = acceptedTerms; }
 
     public RegisterRequest() {
     }

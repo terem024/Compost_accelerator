@@ -25,6 +25,7 @@ class AuthServiceRegistrationTests {
         RegisterRequest request = new RegisterRequest();
         request.setName(" Test User "); request.setEmail("TEST@example.com");
         request.setPassword("password1"); request.setConfirmPassword("password1");
+        request.setAcceptedTerms(true);
 
         var result = service.register(request, "127.0.0.1", "browser");
         assertSame(user, result.getUser());
@@ -48,5 +49,20 @@ class AuthServiceRegistrationTests {
         assertNotNull(AuthService.class
                 .getMethod("register", RegisterRequest.class, String.class, String.class)
                 .getAnnotation(Transactional.class));
+    }
+
+    @Test
+    void registrationRequiresExplicitTermsAcceptanceBeforeDatabaseWrites() {
+        JdbcTemplate jdbc = mock(JdbcTemplate.class);
+        AuthService service = new AuthService(jdbc);
+        RegisterRequest request = new RegisterRequest();
+        request.setName("Test User"); request.setEmail("test@example.com");
+        request.setPassword("password1"); request.setConfirmPassword("password1");
+        var error = assertThrows(IllegalArgumentException.class,
+                () -> service.register(request, "127.0.0.1", "browser"));
+        assertTrue(error.getMessage().contains("Terms and Conditions"));
+        verifyNoInteractions(jdbc);
+        request.setAcceptedTerms(true);
+        assertDoesNotThrow(() -> service.validateRegisterRequest(request));
     }
 }

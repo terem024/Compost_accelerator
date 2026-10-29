@@ -4,6 +4,7 @@ import { loginUser } from '../services/api.js';
 import { sanitizeInput } from '../utils/sanitize.js';
 import NotificationModal from '../components/NotificationModal.jsx';
 import PasswordInput from '../components/PasswordInput.jsx';
+import TermsNotice from '../components/TermsNotice.jsx';
 
 const authIntro = {
   title: 'Build Your Skills With Compost Intelligence',
@@ -119,6 +120,7 @@ function Login({ onLogin }) {
               <Link to="/forgot-password">Forgot Password?</Link>
             </div>
 
+            <TermsNotice action="logging in" />
             <button type="submit" className="primary-button" disabled={loading}>
               {loading ? 'Logging in...' : 'Login'}
             </button>

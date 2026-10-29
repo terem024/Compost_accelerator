@@ -128,6 +128,8 @@ export async function registerUser(profile) {
       email: profile.email.trim(),
       password: profile.password,
       confirmPassword: profile.confirmPassword,
+      // Registration is submitted beneath the terms and privacy acknowledgment.
+      acceptedTerms: true,
     }),
   });
 

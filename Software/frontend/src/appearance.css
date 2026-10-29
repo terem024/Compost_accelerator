@@ -61,6 +61,38 @@
 .prediction-success-alert .swal2-title { font-size: 1.375rem; color: var(--heading); }
 .prediction-success-alert .swal2-html-container { font-size: 1rem; line-height: 1.6; }
 .prediction-success-alert .swal2-confirm { font-size: 1rem; }
+.prediction-success-alert .swal2-icon.swal2-success { color: var(--positive); border-color: var(--positive); }
+.ai-warning {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-block: 16px;
+  padding: 16px;
+  border: 1px solid #b88a2b;
+  border-left-width: 4px;
+  border-radius: 6px;
+  background: rgb(180 130 30 / 12%);
+  color: var(--warning);
+}
+.ai-warning svg { flex: 0 0 24px; }
+.ai-warning p { margin: 6px 0 0; font-size: .9rem; line-height: 1.6; }
+.terms-login-notice { font-size: .875rem; line-height: 1.6; color: var(--secondary); margin: 0; }
+.terms-link { border: 0; padding: 0; background: none; color: var(--link); text-decoration: underline; cursor: pointer; font: inherit; text-align: left; }
+.terms-dialog { width: min(680px, calc(100% - 32px)); max-height: 90dvh; padding: 24px; color: var(--text); background: var(--surface); border: 1px solid #718096; border-radius: 8px; }
+.terms-dialog[open] { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; gap: 16px; }
+.terms-dialog::backdrop { background: rgb(2 6 23 / 70%); }
+.terms-dialog-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.terms-dialog-header h2 { margin: 0; font-size: 1.25rem; }
+.terms-dialog-body { overflow-y: auto; line-height: 1.65; }
+.terms-dialog-body h3 { font-size: 1rem; margin-bottom: 4px; }
+.terms-dialog-body p { margin: 0 0 16px; }
+.terms-dialog > .primary-button { justify-self: end; }
+.terms-dialog > .primary-button,
+:root[data-theme='light'] .auth-form > .primary-button,
+:root[data-theme='light'] .auth-form > div .primary-button {
+  background: #277454;
+  color: #fff;
+}
 .prediction-disclaimer { color: var(--muted); font-size: .875rem; }
 .prediction-result-row { gap: 16px; flex-wrap: wrap; }
 .prediction-result-row span { overflow-wrap: anywhere; }

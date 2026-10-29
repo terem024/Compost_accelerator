@@ -4,6 +4,7 @@ import { registerUser, sendOtpEmail, verifyOtp } from '../services/api.js';
 import { sanitizeInput } from '../utils/sanitize.js';
 import NotificationModal from '../components/NotificationModal.jsx';
 import PasswordInput from '../components/PasswordInput.jsx';
+import TermsNotice from '../components/TermsNotice.jsx';
 
 const authIntro = {
   title: 'Build Your Skills With Compost Intelligence',
@@ -124,6 +125,7 @@ function Register({ onRegister }) {
 
   const handleVerifyOtp = async () => {
     setSubmitError('');
+    if (!validate()) return;
 
     if (!otpValue) {
       setSubmitError('Please enter the OTP.');
@@ -226,6 +228,7 @@ function Register({ onRegister }) {
             )}
           </label>
 
+          <TermsNotice action="signing up" />
           <button type="submit" className="primary-button" disabled={loading}>
             {loading ? (otpSent ? 'Please wait...' : 'Sending OTP...') : 'Register'}
           </button>

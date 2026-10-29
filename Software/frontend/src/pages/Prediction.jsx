@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Swal from 'sweetalert2';
 import 'sweetalert2/dist/sweetalert2.min.css';
+import { TriangleAlert } from 'lucide-react';
 import Layout from '../components/Layout.jsx';
 import { presentPrediction } from '../services/predictionPresentation.js';
 import {
@@ -313,6 +314,7 @@ function Prediction({ user, online }) {
         setPredictionModalOpen(false);
         await Swal.fire({
           icon: 'success',
+          iconHtml: '&#10003;',
           titleText: 'AI analysis available',
           text: 'Your compost analysis is available. Open the result to review the estimate and recommendations.',
           confirmButtonText: 'View result',
@@ -627,6 +629,13 @@ function Prediction({ user, online }) {
 
             {prediction && (
               <>
+                <div className="ai-warning" role="note" aria-label="AI disclaimer and warning">
+                  <TriangleAlert size={24} aria-hidden="true" />
+                  <div>
+                    <strong>AI can make mistakes</strong>
+                    <p>Predictions, readiness dates, and recommendations may be inaccurate, especially when sensor data is missing or unreliable. Verify the readings and physically inspect the compost before marking it ready or using it as fertilizer. An AI result does not confirm compost maturity or safety.</p>
+                  </div>
+                </div>
                 {prediction.message && (
                   <div className={`prediction-message ${prediction.dailyLimitReached ? 'limit-message' : ''}`}>
                     <strong>{prediction.dailyLimitReached ? 'Prediction limit: ' : ''}</strong>

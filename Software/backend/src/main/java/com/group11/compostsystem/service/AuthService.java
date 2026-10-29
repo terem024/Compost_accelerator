@@ -67,6 +67,9 @@ public class AuthService {
         if (password != null && !password.isBlank() && !password.equals(confirmPassword)) {
             throw new IllegalArgumentException("Password dont match.");
         }
+        if (!request.isAcceptedTerms()) {
+            throw new IllegalArgumentException("Please agree to the Terms and Conditions before registering.");
+        }
     }
 
     @Transactional
