@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { forgotPassword } from '../../services/api.js';
+import { sendOwnPasswordResetEmail } from '../../services/api.js';
 
 function MeSection({ user, onLogout }) {
   const [message, setMessage] = useState('');
@@ -18,8 +18,8 @@ function MeSection({ user, onLogout }) {
     setSendingReset(true);
 
     try {
-      const response = await forgotPassword(user.email);
-      setMessage(response.message || 'If the email is registered, a password reset link has been sent.');
+      const response = await sendOwnPasswordResetEmail();
+      setMessage(response.message || 'Password reset email sent. Check your inbox and spam folder, then open the link to choose a new password.');
     } catch (err) {
       setError(err.message || 'Unable to send password reset email.');
     } finally {

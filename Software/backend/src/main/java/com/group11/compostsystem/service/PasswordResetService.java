@@ -23,7 +23,9 @@ import java.util.Base64;
 public class PasswordResetService {
 
     public static final String FORGOT_PASSWORD_MESSAGE =
-            "If an account exists for that email, a password reset link has been sent.";
+            "Reset request received. If this email is registered, you will receive a password reset link. Check your inbox and spam folder. If it does not arrive, check the email address and try again.";
+    public static final String RESET_EMAIL_SENT_MESSAGE =
+            "Password reset email sent. Check your inbox and spam folder, then open the reset link to choose a new password. If it does not arrive within a few minutes, try again or contact the system administrator.";
     public static final String RESET_SUCCESS_MESSAGE =
             "Password reset successful. You may now log in.";
 
@@ -44,7 +46,7 @@ public class PasswordResetService {
         this.emailService = emailService;
     }
 
-    public void requestPasswordReset(ForgotPasswordRequest request, String ipAddress, String userAgent) {
+    public boolean requestPasswordReset(ForgotPasswordRequest request, String ipAddress, String userAgent) {
         String email = request == null || request.getEmail() == null
                 ? ""
                 : request.getEmail().trim().toLowerCase();
@@ -107,8 +109,10 @@ public class PasswordResetService {
                 );
                 throw e;
             }
+            return true;
         } catch (EmptyResultDataAccessException ignored) {
             // Keep the response generic so callers cannot enumerate accounts.
+            return false;
         }
     }
 

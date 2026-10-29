@@ -69,7 +69,7 @@ public class GeminiPredictionClient {
             HttpRequest request = HttpRequest.newBuilder()
                     .uri(URI.create("https://generativelanguage.googleapis.com/v1beta/models/"
                             + model + ":generateContent"))
-                    .timeout(Duration.ofSeconds(60))
+                    .timeout(Duration.ofSeconds(30))
                     .header("Content-Type", "application/json")
                     .header("x-goog-api-key", apiKey)
                     .POST(HttpRequest.BodyPublishers.ofString(mapper.writeValueAsString(body)))
@@ -90,7 +90,9 @@ public class GeminiPredictionClient {
                     default -> "The AI service is temporarily unavailable. Please try again shortly.";
                 });
             }
-            JsonNode candidate = mapper.readTree(response.body()).path("candidates").path(0);
+            JsonNode root = mapper.readTree(response.body());
+            if (root == null || !root.isObject()) throw new IOException("Invalid Gemini response");
+            JsonNode candidate = root.path("candidates").path(0);
             if (!"STOP".equals(candidate.path("finishReason").asText())) {
                 throw new PredictionUnavailableException("The AI couldn't complete this prediction. Please try again. Your daily prediction has not been used.");
             }
@@ -101,7 +103,7 @@ public class GeminiPredictionClient {
             if (result.toString().isBlank()) throw new IOException("Empty Gemini response");
             return result.toString();
         } catch (HttpTimeoutException ex) {
-            LOGGER.warn("Gemini request timed out (60-second request limit).");
+            LOGGER.warn("Gemini request timed out (30-second request limit).");
             throw new PredictionUnavailableException("The AI is taking longer than expected. Please try again shortly. Your daily prediction has not been used.");
         } catch (InterruptedException ex) {
             Thread.currentThread().interrupt();
@@ -110,6 +112,10 @@ public class GeminiPredictionClient {
             LOGGER.warn("Gemini connection or response failed: {}", ex.getClass().getSimpleName());
             throw new PredictionUnavailableException("We couldn't reach the AI service or read its response. Please try again shortly.");
         }
+    }
+
+    public String modelName() {
+        return model;
     }
 
     public static class PredictionUnavailableException extends RuntimeException {

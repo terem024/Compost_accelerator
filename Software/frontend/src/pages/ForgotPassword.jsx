@@ -42,11 +42,11 @@ function ForgotPassword() {
     setLoading(true);
 
     try {
-      await forgotPassword(email);
+      const response = await forgotPassword(email);
       setNotification({
         isOpen: true,
-        message: 'Email has been sent.',
-        type: 'success',
+        message: response.message || 'Reset request received. If this email is registered, check your inbox and spam folder for a password reset link.',
+        type: 'info',
       });
       setEmail('');
     } catch (err) {

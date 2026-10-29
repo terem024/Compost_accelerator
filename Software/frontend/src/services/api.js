@@ -201,6 +201,13 @@ export async function forgotPassword(email) {
   });
 }
 
+export async function sendOwnPasswordResetEmail() {
+  return request('/auth/password-reset-email', {
+    method: 'POST',
+    timeoutMs: 45000,
+  });
+}
+
 export async function resetPassword(token, newPassword, confirmPassword) {
   return request('/auth/reset-password', {
     method: 'POST',

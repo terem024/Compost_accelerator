@@ -20,8 +20,8 @@ import static org.mockito.Mockito.*;
 
 class PredictionServiceTests {
     private final JdbcTemplate jdbc = mock(JdbcTemplate.class);
-    private final GeminiPredictionClient gemini = mock(GeminiPredictionClient.class);
-    private final PredictionService service = new PredictionService(jdbc, new ObjectMapper(), gemini);
+    private final FallbackPredictionClient predictionClient = mock(FallbackPredictionClient.class);
+    private final PredictionService service = new PredictionService(jdbc, new ObjectMapper(), predictionClient);
 
     @BeforeEach
     void batchExists() {
@@ -39,19 +39,19 @@ class PredictionServiceTests {
         verify(jdbc).queryForObject(contains("created_at >= ?"), any(RowMapper.class), eq(3),
                 eq(Timestamp.from(today.atStartOfDay(ZoneId.of("Asia/Manila")).toInstant())),
                 eq(Timestamp.from(today.plusDays(1).atStartOfDay(ZoneId.of("Asia/Manila")).toInstant())));
-        verifyNoInteractions(gemini);
+        verifyNoInteractions(predictionClient);
     }
 
     @Test
     @SuppressWarnings("unchecked")
-    void savedDailyPredictionDoesNotCallGeminiAgain() {
+    void savedDailyPredictionDoesNotCallEitherProviderAgain() {
         AIPredictionResponse saved = new AIPredictionResponse();
         saved.setSuccess(true);
         saved.setPredictionId(12);
         when(jdbc.queryForObject(contains("created_at >= ?"), any(RowMapper.class), eq(3), any(), any()))
                 .thenReturn(saved);
         assertSame(saved, service.generatePrediction(3));
-        verifyNoInteractions(gemini);
+        verifyNoInteractions(predictionClient);
     }
 
     @Test
@@ -65,7 +65,7 @@ class PredictionServiceTests {
         when(jdbc.queryForList("CALL sp_get_latest_sensor_reading_for_batch(?)", 3))
                 .thenReturn(List.of(Map.of("reading_id", 10, "batch_id", 3)));
         when(jdbc.queryForMap(anyString(), eq(3))).thenReturn(Map.of("total_readings", 1));
-        when(gemini.generate(anyString())).thenThrow(new GeminiPredictionClient.PredictionUnavailableException("AI usage limit reached."));
+        when(predictionClient.generate(anyString())).thenThrow(new GeminiPredictionClient.PredictionUnavailableException("AI usage limit reached."));
         AIPredictionResponse result = service.generatePrediction(3);
         assertFalse(result.isSuccess());
         assertEquals("AI usage limit reached.", result.getMessage());
@@ -73,11 +73,40 @@ class PredictionServiceTests {
         verify(jdbc, never()).queryForObject(startsWith("CALL sp_save_ai_prediction"), any(RowMapper.class), any(Object[].class));
         verify(jdbc, never()).update(anyString(), any(Object[].class));
         var prompt = org.mockito.ArgumentCaptor.forClass(String.class);
-        verify(gemini).generate(prompt.capture());
+        verify(predictionClient).generate(prompt.capture());
         assertTrue(prompt.getValue().contains("\"batch_id\":3"));
         assertTrue(prompt.getValue().contains("\"batch_weight_kg\":5"));
         assertFalse(prompt.getValue().contains("\"actual_ready_date\""));
         assertFalse(prompt.getValue().contains("\"latest_predicted_ready_date\""));
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void backupResultIsSavedWithActualProviderAndReusedWithoutAnotherProviderCall() throws Exception {
+        when(jdbc.queryForObject(anyString(), any(RowMapper.class), any(Object[].class)))
+                .thenThrow(new EmptyResultDataAccessException(1));
+        AIPredictionResponse saved = new AIPredictionResponse();
+        saved.setSuccess(true);
+        saved.setPredictionId(55);
+        when(jdbc.queryForObject(contains("created_at >= ?"), any(RowMapper.class), eq(3), any(), any()))
+                .thenThrow(new EmptyResultDataAccessException(1)).thenReturn(saved);
+        when(jdbc.queryForList("CALL sp_get_latest_sensor_reading_for_batch(?)", 3))
+                .thenReturn(List.of(Map.of("reading_id", 10, "batch_id", 3)));
+        when(jdbc.queryForMap(anyString(), eq(3))).thenReturn(Map.of("total_readings", 1));
+        when(jdbc.queryForObject(startsWith("CALL sp_save_ai_prediction"), any(RowMapper.class), any(Object[].class)))
+                .thenReturn(55);
+        String raw = FallbackPredictionClientTests.VALID;
+        when(predictionClient.generate(anyString())).thenReturn(new FallbackPredictionClient.Result(
+                "Groq", "openai/gpt-oss-120b", raw, new ObjectMapper().readTree(raw)));
+
+        assertSame(saved, service.generatePrediction(3));
+        assertSame(saved, service.generatePrediction(3));
+        verify(predictionClient, times(1)).generate(anyString());
+        var args = org.mockito.ArgumentCaptor.forClass(Object[].class);
+        verify(jdbc).queryForObject(startsWith("CALL sp_save_ai_prediction"), any(RowMapper.class), args.capture());
+        assertEquals("openai/gpt-oss-120b", args.getValue()[11]);
+        assertEquals(raw, args.getValue()[13]);
+        verify(jdbc).update("UPDATE ai_predictions SET model_provider = ? WHERE prediction_id = ?", "Groq", 55);
     }
 
     @Test
@@ -92,7 +121,7 @@ class PredictionServiceTests {
                 "AI prediction is only available for ongoing compost batches. The selected batch is completed.",
                 result.getMessage()
         );
-        verifyNoInteractions(gemini);
+        verifyNoInteractions(predictionClient);
         verify(jdbc, never()).queryForList("CALL sp_get_latest_sensor_reading_for_batch(?)", 3);
     }
 
@@ -110,7 +139,7 @@ class PredictionServiceTests {
         );
         assertNull(availability.getNextPredictionAt());
         assertNull(availability.getPrediction());
-        verifyNoInteractions(gemini);
+        verifyNoInteractions(predictionClient);
     }
 
     @Test

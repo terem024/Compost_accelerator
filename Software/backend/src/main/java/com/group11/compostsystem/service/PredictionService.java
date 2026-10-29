@@ -12,7 +12,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -33,10 +32,7 @@ public class PredictionService {
     private final JdbcTemplate jdbcTemplate;
     private final ObjectMapper objectMapper;
 
-    private final GeminiPredictionClient geminiClient;
-
-    @Value("${gemini.model:gemini-2.5-flash}")
-    private String geminiModel;
+    private final FallbackPredictionClient predictionClient;
 
     private static final Set<String> VALID_CONDITIONS = Set.of(
             "OPTIMAL",
@@ -55,10 +51,10 @@ public class PredictionService {
     private static final String INACTIVE_BATCH_MESSAGE =
             "AI prediction is only available for ongoing compost batches.";
 
-    public PredictionService(JdbcTemplate jdbcTemplate, ObjectMapper objectMapper, GeminiPredictionClient geminiClient) {
+    public PredictionService(JdbcTemplate jdbcTemplate, ObjectMapper objectMapper, FallbackPredictionClient predictionClient) {
         this.jdbcTemplate = jdbcTemplate;
         this.objectMapper = objectMapper;
-        this.geminiClient = geminiClient;
+        this.predictionClient = predictionClient;
     }
 
     public synchronized AIPredictionResponse generatePrediction(Integer batchId) {
@@ -117,8 +113,8 @@ public class PredictionService {
             ));
 
             String prompt = buildPrompt(inputSnapshot);
-            String rawGeminiResponse = geminiClient.generate(prompt);
-            JsonNode aiJson = parseGeminiJson(rawGeminiResponse);
+            FallbackPredictionClient.Result aiResult = predictionClient.generate(prompt);
+            JsonNode aiJson = aiResult.json();
 
             String predictedCondition = getText(aiJson, "predicted_condition", "NEEDS_ATTENTION").toUpperCase();
             if (!VALID_CONDITIONS.contains(predictedCondition)) {
@@ -154,7 +150,7 @@ public class PredictionService {
                     readingSummary,
                     confidenceScore,
                     inputSnapshot,
-                    rawGeminiResponse
+                    aiResult
             );
 
             return getTodaysPrediction(
@@ -526,15 +522,6 @@ public class PredictionService {
         """ + inputSnapshot;
     }
 
-    private JsonNode parseGeminiJson(String rawGeminiResponse) throws Exception {
-        String cleaned = rawGeminiResponse
-                .replace("```json", "")
-                .replace("```", "")
-                .trim();
-
-        return objectMapper.readTree(cleaned);
-    }
-
     static AIPredictionResponse reviewEstimate(AIPredictionResponse response, LocalDate today) {
         LocalDate date = response.getEstimatedReadyDate();
         Integer days = response.getEstimatedDaysRemaining();
@@ -571,12 +558,12 @@ public class PredictionService {
             Map<String, Object> readingSummary,
             BigDecimal confidenceScore,
             String inputSnapshot,
-            String rawGeminiResponse
+            FallbackPredictionClient.Result aiResult
     ) {
         Timestamp windowStart = toTimestamp(readingSummary.get("analysis_window_start"));
         Timestamp windowEnd = toTimestamp(readingSummary.get("analysis_window_end"));
 
-        return jdbcTemplate.queryForObject(
+        Integer predictionId = jdbcTemplate.queryForObject(
                 "CALL sp_save_ai_prediction(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (rs, rowNum) -> rs.getInt("prediction_id"),
                 batchId,
@@ -590,10 +577,14 @@ public class PredictionService {
                 windowStart,
                 windowEnd,
                 confidenceScore,
-                geminiModel,
+                aiResult.model(),
                 inputSnapshot,
-                rawGeminiResponse
+                aiResult.raw()
         );
+        // Legacy save procedures label every result Gemini; retain the actual provider.
+        jdbcTemplate.update("UPDATE ai_predictions SET model_provider = ? WHERE prediction_id = ?",
+                aiResult.provider(), predictionId);
+        return predictionId;
     }
 
     private String getText(JsonNode node, String fieldName, String fallback) {

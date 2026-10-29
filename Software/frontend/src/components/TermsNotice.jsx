@@ -30,7 +30,7 @@ export default function TermsNotice({ action = 'logging in' }) {
               <h3>How information is used</h3>
               <p>Information is used to manage accounts and sessions, operate compost monitoring and controls, generate reports and AI analysis, and investigate system problems. Do not add unnecessary personal or confidential details to batch names, descriptions, or notes.</p>
               <h3>Hosting and AI processing</h3>
-              <p>The application and its records are hosted using Railway. Batch information and sensor and actuator summaries may be sent to the external AI provider, currently Google Gemini, to generate predictions. Avoid including sensitive information in those records.</p>
+              <p>The application and its records are hosted using Railway. Batch information and sensor and actuator summaries may be sent to Google Gemini to generate predictions, or to Groq as a backup when Gemini is unavailable or returns an unusable response. Avoid including sensitive information in those records.</p>
               <h3>Access and account safety</h3>
               <p>Project researchers and designated system administrators may access records for system operation and support. Keep your credentials private and sign out on shared devices.</p>
               <h3>Questions and requests</h3>

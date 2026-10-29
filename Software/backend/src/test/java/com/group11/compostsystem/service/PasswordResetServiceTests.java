@@ -26,13 +26,26 @@ class PasswordResetServiceTests {
 
         ForgotPasswordRequest request = new ForgotPasswordRequest();
         request.setEmail(" USER@example.com ");
-        service.requestPasswordReset(request, "127.0.0.1", "browser");
+        assertTrue(service.requestPasswordReset(request, "127.0.0.1", "browser"));
 
         verify(jdbc).update(contains("INSERT INTO password_reset_tokens"),
                 eq(7L), anyString(), any(), eq("127.0.0.1"), eq("browser"));
         verify(email).sendPasswordResetEmail(eq("user@example.com"),
                 startsWith("https://frontend-production-0141.up.railway.app/reset-password?token="));
         verify(jdbc, never()).queryForObject(startsWith("CALL sp_get_user_by_email"), any(RowMapper.class), any());
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void unknownAccountDoesNotReportAnEmailWasSent() {
+        JdbcTemplate jdbc = mock(JdbcTemplate.class);
+        EmailService email = mock(EmailService.class);
+        when(jdbc.queryForObject(contains("FROM users"), any(RowMapper.class), anyString()))
+                .thenThrow(new org.springframework.dao.EmptyResultDataAccessException(1));
+        ForgotPasswordRequest request = new ForgotPasswordRequest();
+        request.setEmail("missing@example.com");
+        assertFalse(service(jdbc, email).requestPasswordReset(request, null, null));
+        verifyNoInteractions(email);
     }
 
     @Test

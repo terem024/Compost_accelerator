@@ -44,7 +44,7 @@ class GeminiPredictionClientTests {
         verify(http).send(request.capture(), any(HttpResponse.BodyHandler.class));
         assertEquals("test-key", request.getValue().headers().firstValue("x-goog-api-key").orElseThrow());
         assertNull(request.getValue().uri().getQuery());
-        assertEquals(60, request.getValue().timeout().orElseThrow().toSeconds());
+        assertEquals(30, request.getValue().timeout().orElseThrow().toSeconds());
     }
 
     @ParameterizedTest
