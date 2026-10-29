@@ -5,11 +5,12 @@ import { sanitizeInput } from '../utils/sanitize.js';
 import NotificationModal from '../components/NotificationModal.jsx';
 import PasswordInput from '../components/PasswordInput.jsx';
 import TermsNotice from '../components/TermsNotice.jsx';
+import ThemeToggle from '../components/ThemeToggle.jsx';
 
 const authIntro = {
-  title: 'Build Your Skills With Compost Intelligence',
+  title: 'Compost monitoring and batch management',
   description:
-    'Monitor compost health and stay on top of environmental conditions with live sensor history, alerts, and actuator response simulation.',
+    'Review live readings, daily reports, and AI-assisted estimates for your compost batches.',
 };
 
 const preventPasswordPaste = (event) => {
@@ -81,7 +82,7 @@ function Login({ onLogin }) {
         </aside>
 
         <div className="auth-card">
-          <h1>Welcome!</h1>
+          <div className="auth-card-heading"><h1>Welcome!</h1><ThemeToggle /></div>
           <p className="auth-subtitle">Please login to your account.</p>
 
           {submitError && <p className="form-message error">{submitError}</p>}

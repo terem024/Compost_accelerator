@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { ChevronDown, FolderArchive, Search, X, CalendarDays } from 'lucide-react';
 import Layout from '../components/Layout.jsx';
 import { getActiveCompostBatch, getDailyReports } from '../services/api.js';
 
@@ -71,6 +72,7 @@ function DailyReports({ user, online }) {
   const [selectedActiveDate, setSelectedActiveDate] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [batchSearch, setBatchSearch] = useState('');
 
   useEffect(() => {
     let active = true;
@@ -118,6 +120,11 @@ function DailyReports({ user, online }) {
       }
       completedReportsByBatch.get(report.batchId).reports.push(report);
     });
+  const historyBatches = [...completedReportsByBatch.entries()]
+    .filter(([, batch]) => batch.label.toLowerCase().includes(batchSearch.trim().toLowerCase()));
+  historyBatches.forEach(([, batch]) => batch.reports.sort(
+    (first, second) => String(second.reportDate).localeCompare(String(first.reportDate))
+  ));
 
   return (
     <Layout
@@ -129,7 +136,7 @@ function DailyReports({ user, online }) {
       <section className="daily-report-section">
         <div className="daily-report-header">
           <div>
-            <h3>Daily Sensor Report</h3>
+            <h3 className="report-section-title"><CalendarDays size={22} aria-hidden="true" />Daily Sensor Report</h3>
             <p>Generated automatically every day at 6:00 AM for the previous day.</p>
             {activeBatch && <p>Current batch: {activeBatch.batchName || activeBatch.batchCode}</p>}
           </div>
@@ -169,7 +176,7 @@ function DailyReports({ user, online }) {
       <section className="daily-report-section batch-report-history-section">
         <div className="daily-report-header">
           <div>
-            <h3>Batch Report History</h3>
+            <h3 className="report-section-title"><FolderArchive size={22} aria-hidden="true" />Batch Report History</h3>
           </div>
         </div>
 
@@ -180,17 +187,31 @@ function DailyReports({ user, online }) {
             No completed batch reports yet. Daily summaries will appear here after a batch is finished.
           </div>
         ) : (
-          <div className="batch-history-groups">
-            {[...completedReportsByBatch.entries()].map(([batchId, batch]) => (
-              <section className="batch-history-group" key={batchId}>
-                <div className="batch-history-heading">
-                  <h4>{batch.label}</h4>
-                  <span>
+          <>
+            <div className="batch-history-toolbar">
+              <span className="history-total">{completedReportsByBatch.size} archived batch{completedReportsByBatch.size === 1 ? '' : 'es'}</span>
+              <div className="batch-history-search">
+                <Search size={18} aria-hidden="true" />
+                <input type="search" aria-label="Search batch report history" placeholder="Search batch name or code"
+                  value={batchSearch} onChange={(event) => setBatchSearch(event.target.value)} />
+                {batchSearch && <button type="button" aria-label="Clear batch search" title="Clear batch search"
+                  onClick={() => setBatchSearch('')}><X size={18} /></button>}
+              </div>
+            </div>
+            {historyBatches.length === 0 && <p className="daily-report-empty" role="status">No batches match your search.</p>}
+            <div className="batch-history-groups">
+            {historyBatches.map(([batchId, batch]) => (
+              <details className="batch-history-group" name="batch-report-history" key={batchId}>
+                <summary className="batch-history-heading">
+                  <FolderArchive size={22} className="batch-folder-icon" aria-hidden="true" />
+                  <span className="batch-history-title">{batch.label}</span>
+                  <span className="batch-history-meta">
                     {batch.reports[0].batchStatus === 'CANCELLED' ? 'Canceled' : 'Completed'}
                     {' · '}{batch.reports.length} daily report{batch.reports.length === 1 ? '' : 's'}
                   </span>
-                </div>
-                <div className="batch-history-entries">
+                  <ChevronDown size={20} className="batch-expand-icon" aria-hidden="true" />
+                </summary>
+                <div className="batch-history-entries" role="region" aria-label={`Daily reports for ${batch.label}`} tabIndex={0}>
                   {batch.reports.map((report) => {
                     const metrics = [
                       { label: 'Moisture', average: report.averageMoisture, minimum: report.minimumMoisture, maximum: report.maximumMoisture, unit: '%' },
@@ -223,9 +244,10 @@ function DailyReports({ user, online }) {
                     );
                   })}
                 </div>
-              </section>
+              </details>
             ))}
           </div>
+          </>
         )}
       </section>
     </Layout>
