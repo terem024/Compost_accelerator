@@ -481,7 +481,8 @@ public class PredictionService {
         - low moisture can trigger the water spray
         - high gas can trigger the fan
         - gas readings and the gas threshold are relative percentages from 0% to 100%, not PPM
-        High humidity above 85 percent can also trigger the fan.
+        Humidity above 85 percent can also trigger the fan.
+        Automatic fan and spray commands are paused from 6:00 PM until 8:31 AM Philippine time.
         Moisture percentages are calibrated relative sensor indices, not measured water content.
 
         Your task:

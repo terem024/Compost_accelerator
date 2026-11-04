@@ -6,12 +6,14 @@ import com.group11.compostsystem.dto.ActuatorRuntimeStatusResponse;
 import com.group11.compostsystem.dto.ActuatorStatusResponse;
 import com.group11.compostsystem.dto.SensorReadingResponse;
 import com.group11.compostsystem.dto.ThresholdSettingsResponse;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.sql.Timestamp;
+import java.time.Clock;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -24,17 +26,25 @@ public class ActuatorLogService {
     private static final BigDecimal HUMIDITY_HIGH_THRESHOLD = new BigDecimal("85.00");
     private final JdbcTemplate jdbcTemplate;
     private final EmailService emailService;
+    private final Clock clock;
 
+    @Autowired
     public ActuatorLogService(JdbcTemplate jdbcTemplate, EmailService emailService) {
+        this(jdbcTemplate, emailService, Clock.systemUTC());
+    }
+
+    ActuatorLogService(JdbcTemplate jdbcTemplate, EmailService emailService, Clock clock) {
         this.jdbcTemplate = jdbcTemplate;
         this.emailService = emailService;
+        this.clock = clock;
     }
 
     public List<ActuatorActionResponse> applyAutomaticControl(SensorReadingResponse reading,
                                                               ThresholdSettingsResponse thresholds) {
         List<ActuatorActionResponse> actions = new ArrayList<>();
 
-        if (reading == null || reading.getReadingId() == null || thresholds == null) {
+        if (reading == null || reading.getReadingId() == null || thresholds == null
+                || ActuatorQuietHours.isQuiet(clock)) {
             return actions;
         }
 
@@ -55,34 +65,17 @@ public class ActuatorLogService {
             }
         }
 
-        boolean fanTriggered = false;
-        if (reading.getGasLevel() != null
-                && reading.getGasLevel().compareTo(thresholds.getGasMax()) > 0) {
+        boolean highGas = reading.getGasLevel() != null
+                && reading.getGasLevel().compareTo(thresholds.getGasMax()) > 0;
+        boolean highHumidity = reading.getHumidityLevel() != null
+                && reading.getHumidityLevel().compareTo(HUMIDITY_HIGH_THRESHOLD) > 0;
+        if (highGas || highHumidity) {
             ActuatorActionResponse action = pulseActuator(
                     reading,
                     FAN,
-                    "GAS",
-                    reading.getGasLevel(),
-                    thresholds.getGasMax(),
-                    valueOrDefault(thresholds.getFanDurationSeconds(), 5),
-                    valueOrDefault(thresholds.getFanCooldownSeconds(), 30)
-            );
-
-            if (action != null) {
-                actions.add(action);
-                fanTriggered = true;
-            }
-        }
-
-        if (!fanTriggered
-                && reading.getHumidityLevel() != null
-                && reading.getHumidityLevel().compareTo(HUMIDITY_HIGH_THRESHOLD) > 0) {
-            ActuatorActionResponse action = pulseActuator(
-                    reading,
-                    FAN,
-                    "HUMIDITY",
-                    reading.getHumidityLevel(),
-                    HUMIDITY_HIGH_THRESHOLD,
+                    highGas ? "GAS" : "HUMIDITY",
+                    highGas ? reading.getGasLevel() : reading.getHumidityLevel(),
+                    highGas ? thresholds.getGasMax() : HUMIDITY_HIGH_THRESHOLD,
                     valueOrDefault(thresholds.getFanDurationSeconds(), 5),
                     valueOrDefault(thresholds.getFanCooldownSeconds(), 30)
             );

@@ -3,6 +3,7 @@ package com.group11.compostsystem.service;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -16,6 +17,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
+import java.time.Clock;
 import java.util.Map;
 import java.util.Locale;
 import java.util.concurrent.Executor;
@@ -32,6 +34,7 @@ public class EmailService {
     private final ObjectMapper objectMapper;
     private final GmailApiEmailSender gmailApiEmailSender;
     private final Executor notificationExecutor;
+    private final Clock clock;
 
     @Value("${app.email.provider:auto}")
     private String provider = "auto";
@@ -48,11 +51,18 @@ public class EmailService {
     @Value("${app.notification.email:}")
     private String notificationEmail;
 
+    @Autowired
     public EmailService(JavaMailSender mailSender, GmailApiEmailSender gmailApiEmailSender,
                         @Qualifier("notificationEmailExecutor") Executor notificationExecutor) {
+        this(mailSender, gmailApiEmailSender, notificationExecutor, Clock.systemUTC());
+    }
+
+    EmailService(JavaMailSender mailSender, GmailApiEmailSender gmailApiEmailSender,
+                 Executor notificationExecutor, Clock clock) {
         this.mailSender = mailSender;
         this.gmailApiEmailSender = gmailApiEmailSender;
         this.notificationExecutor = notificationExecutor;
+        this.clock = clock;
         this.httpClient = HttpClient.newBuilder()
                 .connectTimeout(Duration.ofSeconds(10))
                 .build();
@@ -93,6 +103,8 @@ public class EmailService {
 
     public void sendActuatorActivationEmail(String actuatorName, String activationStatus, String timestamp,
                                            String sensorReadings) {
+        if (ActuatorQuietHours.isQuiet(clock)) return;
+
         String recipient = notificationEmail == null || notificationEmail.isBlank()
                 ? fromEmail
                 : notificationEmail;
@@ -116,6 +128,8 @@ public class EmailService {
         // Optional alerts must never delay or prevent returning an actuator command to the ESP32.
         try {
             notificationExecutor.execute(() -> {
+                // A queued activation email may reach the worker after quiet hours begin.
+                if (ActuatorQuietHours.isQuiet(clock)) return;
                 try {
                     sendEmail(recipient, "IoT Compost Accelerator - Actuator Activated", body);
                     LOGGER.info("Actuator notification sent successfully for {}.", actuatorName);

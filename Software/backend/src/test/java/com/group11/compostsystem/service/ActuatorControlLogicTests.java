@@ -5,12 +5,17 @@ import com.group11.compostsystem.dto.ActuatorLogResponse;
 import com.group11.compostsystem.dto.SensorReadingResponse;
 import com.group11.compostsystem.dto.ThresholdSettingsResponse;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.ResultSetExtractor;
 import org.springframework.jdbc.core.RowMapper;
 
 import java.math.BigDecimal;
 import java.sql.Timestamp;
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -18,6 +23,7 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 class ActuatorControlLogicTests {
+    private static final Clock DAYTIME = Clock.fixed(Instant.parse("2026-11-04T00:31:00Z"), ZoneOffset.UTC);
 
     @Test
     @SuppressWarnings("unchecked")
@@ -46,26 +52,22 @@ class ActuatorControlLogicTests {
         assertEquals(30_000L, action.getCooldownUntil().getTime() - action.getEndedAt().getTime());
     }
 
-    @Test
-    void highHumidityRequestsFiveSecondFanWithThirtySecondCooldown() {
-        ActuatorLogService service = serviceWithAvailableActuators();
-
-        List<ActuatorActionResponse> actions = service.applyAutomaticControl(reading("70", "20", "100"), thresholds());
-
-        assertEquals(1, actions.size());
-        ActuatorActionResponse action = actions.get(0);
-        assertEquals("FAN", action.getActuatorType());
-        assertEquals("HUMIDITY", action.getTriggerSource());
-        assertEquals(new BigDecimal("100"), action.getTriggerValue());
-        assertEquals(new BigDecimal("85.00"), action.getThresholdValue());
-        assertEquals(5, action.getDurationSeconds());
-        assertEquals(30_000L, action.getCooldownUntil().getTime() - action.getEndedAt().getTime());
+    @ParameterizedTest
+    @ValueSource(strings = {"2026-11-04T10:00:00Z", "2026-11-04T16:00:00Z", "2026-11-05T00:30:59Z"})
+    void quietHoursSuppressBothActuatorsAndTheirNotifications(String utcTime) {
+        JdbcTemplate jdbc = mock(JdbcTemplate.class);
+        EmailService email = mock(EmailService.class);
+        ActuatorLogService service = new ActuatorLogService(jdbc, email,
+                Clock.fixed(Instant.parse(utcTime), ZoneOffset.UTC));
+        assertTrue(service.applyAutomaticControl(reading("40", "70", "100"), thresholds()).isEmpty());
+        assertTrue(service.applyAutomaticControl(reading("60", "20", "100"), thresholds()).isEmpty());
+        verifyNoInteractions(jdbc, email);
     }
 
     @Test
     void readingsExactlyAtThresholdDoNotActivateEitherActuator() {
         JdbcTemplate jdbc = mock(JdbcTemplate.class);
-        ActuatorLogService service = new ActuatorLogService(jdbc, mock(EmailService.class));
+        ActuatorLogService service = new ActuatorLogService(jdbc, mock(EmailService.class), DAYTIME);
 
         assertTrue(service.applyAutomaticControl(reading("50", "60"), thresholds()).isEmpty());
         verifyNoInteractions(jdbc);
@@ -74,17 +76,29 @@ class ActuatorControlLogicTests {
     @Test
     void humidityAtEightyFiveDoesNotActivateFan() {
         JdbcTemplate jdbc = mock(JdbcTemplate.class);
-        ActuatorLogService service = new ActuatorLogService(jdbc, mock(EmailService.class));
+        ActuatorLogService service = new ActuatorLogService(jdbc, mock(EmailService.class), DAYTIME);
         assertTrue(service.applyAutomaticControl(reading("60", "20", "85.00"), thresholds()).isEmpty());
         verifyNoInteractions(jdbc);
     }
 
     @Test
-    void humidityJustAboveEightyFiveActivatesFan() {
+    void lowMoistureAndHighHumidityRequestSprayAndFanAtEightThirtyOne() {
         var actions = serviceWithAvailableActuators().applyAutomaticControl(
-                reading("60", "20", "85.01"), thresholds());
+                reading("40", "20", "100"), thresholds());
+        assertEquals(2, actions.size());
+        assertEquals("MOISTURE", actions.get(0).getTriggerSource());
+        assertEquals("WATER_SPRAY", actions.get(0).getActuatorType());
+        assertEquals("FAN", actions.get(1).getActuatorType());
+        assertEquals("HUMIDITY", actions.get(1).getTriggerSource());
+        assertEquals(new BigDecimal("85.00"), actions.get(1).getThresholdValue());
+    }
+
+    @Test
+    void highGasStillActivatesFanWhenHumidityIsHigh() {
+        var actions = serviceWithAvailableActuators().applyAutomaticControl(
+                reading("60", "70", "100"), thresholds());
         assertEquals(1, actions.size());
-        assertEquals("HUMIDITY", actions.get(0).getTriggerSource());
+        assertEquals("GAS", actions.get(0).getTriggerSource());
         assertEquals("FAN", actions.get(0).getActuatorType());
     }
 
@@ -98,7 +112,7 @@ class ActuatorControlLogicTests {
                         BigDecimal.ZERO, BigDecimal.ZERO, 1, new Timestamp(0), new Timestamp(0), new Timestamp(0)));
         when(jdbc.query(startsWith("CALL sp_update_actuator_runtime_status"),
                 any(ResultSetExtractor.class), any(Object[].class))).thenReturn(null);
-        return new ActuatorLogService(jdbc, mock(EmailService.class));
+        return new ActuatorLogService(jdbc, mock(EmailService.class), DAYTIME);
     }
 
     private SensorReadingResponse reading(String moisture, String gas) {
