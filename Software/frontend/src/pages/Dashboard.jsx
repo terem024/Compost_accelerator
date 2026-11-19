@@ -380,8 +380,7 @@ function Dashboard({ user, online }) {
         <div className="actuator-card">
           <div className="actuator-title">Fan</div>
           <div className={`actuator-status-readout ${actuatorStatus?.fanActive ? 'active' : 'inactive'}`} role="status">
-            <i aria-hidden="true" />
-            <span>Status: <strong>{getActuatorLabel(fanRuntime, actuatorStatus?.fanActive)}</strong></span>
+            <strong>{getActuatorLabel(fanRuntime, actuatorStatus?.fanActive)}</strong>
           </div>
           <p>Triggered when gas is above {thresholds.gasMax}% or humidity is above {HUMIDITY_HIGH_THRESHOLD}%.</p>
           <span>Last pulse: {formatDateTime(fanRuntime?.lastActivatedAt)}</span>
@@ -390,8 +389,7 @@ function Dashboard({ user, online }) {
         <div className="actuator-card">
           <div className="actuator-title">Water Spray</div>
           <div className={`actuator-status-readout ${actuatorStatus?.waterPumpActive ? 'active' : 'inactive'}`} role="status">
-            <i aria-hidden="true" />
-            <span>Status: <strong>{getActuatorLabel(sprayRuntime, actuatorStatus?.waterPumpActive)}</strong></span>
+            <strong>{getActuatorLabel(sprayRuntime, actuatorStatus?.waterPumpActive)}</strong>
           </div>
           <p>Triggered only when moisture is below {thresholds.moistureMin}%.</p>
           <span>Last pulse: {formatDateTime(sprayRuntime?.lastActivatedAt)}</span>

@@ -9,6 +9,7 @@
   --link: #7dd3fc;
   --accent-text: #bfdbfe;
   --positive: #a7f3d0;
+  --actuator-off: #bfc3c7;
   --negative: #fecaca;
   --warning: #fef3c7;
 }
@@ -24,6 +25,7 @@
   --link: #075985;
   --accent-text: #174b83;
   --positive: #12603b;
+  --actuator-off: #565b60;
   --negative: #9f1239;
   --warning: #744500;
 }
@@ -145,7 +147,7 @@
 :root[data-theme='light'] .sensor-health-item { background: var(--surface); border-color: #a6bdb0; border-radius: 6px; }
 :root[data-theme='light'] .sensor-health-item.working .sensor-health-indicator { background: #15834b; }
 :root[data-theme='light'] .sensor-health-heading strong { color: #10212c; }
-:root[data-theme='light'] :is(.profile-chip, .reading-chip, .latest-reading-chip, .actuator-badge.inactive) {
+:root[data-theme='light'] :is(.profile-chip, .reading-chip, .latest-reading-chip) {
   background: #e1e2dc;
   color: #293e4d;
   border: 1px solid #aebdc8;

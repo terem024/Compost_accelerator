@@ -1947,20 +1947,17 @@ button {
   align-items: center;
   gap: 8px;
   min-height: 28px;
-  color: var(--secondary);
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  background: none;
+  box-shadow: none;
+  color: var(--actuator-off);
   font-size: 0.95rem;
   line-height: 1.5;
 }
 
-.actuator-status-readout i {
-  width: 9px;
-  height: 9px;
-  flex: 0 0 9px;
-  border-radius: 50%;
-  background: currentColor;
-}
-
-.actuator-status-readout span {
+.actuator-status-readout strong {
   min-width: 0;
   overflow-wrap: anywhere;
 }
@@ -1974,20 +1971,22 @@ button {
   align-items: center;
   justify-content: center;
   width: fit-content;
-  padding: 8px 14px;
-  border-radius: 999px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
   font-size: 0.85rem;
   font-weight: 700;
 }
 
 .actuator-badge.active {
   color: var(--positive);
-  background: rgba(34, 197, 94, 0.16);
+  background: none;
 }
 
 .actuator-badge.inactive {
-  color: var(--secondary);
-  background: rgba(148, 163, 184, 0.16);
+  color: var(--actuator-off);
+  background: none;
 }
 
 .logout-button {
