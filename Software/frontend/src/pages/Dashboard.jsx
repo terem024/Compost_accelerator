@@ -280,6 +280,7 @@ function Dashboard({ user, online }) {
   };
 
   const getActuatorLabel = (runtimeStatus, active) => {
+    if (!actuatorStatus) return 'Unavailable';
     if (active) return 'ON';
 
     const cooldownUntil = runtimeStatus?.cooldownUntil
@@ -378,8 +379,9 @@ function Dashboard({ user, online }) {
       <div className="actuator-dashboard-grid">
         <div className="actuator-card">
           <div className="actuator-title">Fan</div>
-          <div className={`actuator-badge ${actuatorStatus?.fanActive ? 'active' : 'inactive'}`}>
-            {getActuatorLabel(fanRuntime, actuatorStatus?.fanActive)}
+          <div className={`actuator-status-readout ${actuatorStatus?.fanActive ? 'active' : 'inactive'}`} role="status">
+            <i aria-hidden="true" />
+            <span>Status: <strong>{getActuatorLabel(fanRuntime, actuatorStatus?.fanActive)}</strong></span>
           </div>
           <p>Triggered when gas is above {thresholds.gasMax}% or humidity is above {HUMIDITY_HIGH_THRESHOLD}%.</p>
           <span>Last pulse: {formatDateTime(fanRuntime?.lastActivatedAt)}</span>
@@ -387,8 +389,9 @@ function Dashboard({ user, online }) {
 
         <div className="actuator-card">
           <div className="actuator-title">Water Spray</div>
-          <div className={`actuator-badge ${actuatorStatus?.waterPumpActive ? 'active' : 'inactive'}`}>
-            {getActuatorLabel(sprayRuntime, actuatorStatus?.waterPumpActive)}
+          <div className={`actuator-status-readout ${actuatorStatus?.waterPumpActive ? 'active' : 'inactive'}`} role="status">
+            <i aria-hidden="true" />
+            <span>Status: <strong>{getActuatorLabel(sprayRuntime, actuatorStatus?.waterPumpActive)}</strong></span>
           </div>
           <p>Triggered only when moisture is below {thresholds.moistureMin}%.</p>
           <span>Last pulse: {formatDateTime(sprayRuntime?.lastActivatedAt)}</span>

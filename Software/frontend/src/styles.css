@@ -1942,6 +1942,33 @@ button {
   font-weight: 700;
 }
 
+.actuator-status-readout {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 28px;
+  color: var(--secondary);
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+.actuator-status-readout i {
+  width: 9px;
+  height: 9px;
+  flex: 0 0 9px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.actuator-status-readout span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.actuator-status-readout.active {
+  color: var(--positive);
+}
+
 .actuator-badge {
   display: inline-flex;
   align-items: center;
